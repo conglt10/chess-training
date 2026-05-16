@@ -9,6 +9,7 @@ interface TheoryViewProps {
   opening: Opening;
   theme: ThemeConfig;
   onStartExercise: () => void;
+  onAppMode: (m: 'light' | 'dark' | 'system') => void;
 }
 
 const SPEEDS = [
@@ -18,8 +19,9 @@ const SPEEDS = [
   { label: '3×', ms: 333 },
 ];
 
-export default function TheoryView({ opening, theme, onStartExercise }: TheoryViewProps) {
+export default function TheoryView({ opening, theme, onStartExercise, onAppMode }: TheoryViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(1);
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -91,6 +93,7 @@ export default function TheoryView({ opening, theme, onStartExercise }: TheoryVi
               fen={fen}
               theme={theme}
               interactive={false}
+              playerColor={isFlipped ? 'black' : 'white'}
               boardWidth={640}
             />
           </div>
@@ -134,6 +137,13 @@ export default function TheoryView({ opening, theme, onStartExercise }: TheoryVi
                 fastForwardToEnd();
               }}
             >⏭</button>
+            <div className="ctrl-divider" />
+            <button
+              className="ctrl-btn"
+              id="theory-flip-board"
+              title="Flip board"
+              onClick={() => setIsFlipped(!isFlipped)}
+            >↻</button>
           </div>
 
           <div className="auto-play-speed">
@@ -180,6 +190,21 @@ export default function TheoryView({ opening, theme, onStartExercise }: TheoryVi
               >
                 ↺ Reset Board
               </button>
+            </div>
+          </div>
+
+          <div className="theory-action-panel theme-mode-panel">
+            <div className="theory-action-title">🌓 App Theme</div>
+            <div className="theme-mode-options">
+              {(['light', 'dark', 'system'] as const).map(m => (
+                <button
+                  key={m}
+                  className={`theme-mode-btn ${theme.mode === m ? 'active' : ''}`}
+                  onClick={() => onAppMode(m)}
+                >
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
