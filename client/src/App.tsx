@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './components/Layout/Header';
 import OpeningList from './components/OpeningList/OpeningList';
 import TheoryView from './components/TheoryView/TheoryView';
@@ -7,11 +7,31 @@ import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
 import { AppView, Opening } from './types';
 
+const VIEW_STORAGE_KEY = 'chess-trainer-view';
+const OPENING_STORAGE_KEY = 'chess-trainer-opening';
+
 export default function App() {
-  const [view, setView] = useState<AppView>('list');
-  const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
+  const [view, setView] = useState<AppView>(() => {
+    return (localStorage.getItem(VIEW_STORAGE_KEY) as AppView) || 'list';
+  });
+  const [selectedOpening, setSelectedOpening] = useState<Opening | null>(() => {
+    const stored = localStorage.getItem(OPENING_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  });
   const [showThemePanel, setShowThemePanel] = useState(false);
-  const { theme, setBoardTheme, setPieceTheme } = useTheme();
+  const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_STORAGE_KEY, view);
+  }, [view]);
+
+  useEffect(() => {
+    if (selectedOpening) {
+      localStorage.setItem(OPENING_STORAGE_KEY, JSON.stringify(selectedOpening));
+    } else {
+      localStorage.removeItem(OPENING_STORAGE_KEY);
+    }
+  }, [selectedOpening]);
 
   const handleSelectOpening = (opening: Opening) => {
     setSelectedOpening(opening);
@@ -49,6 +69,7 @@ export default function App() {
             opening={selectedOpening}
             theme={theme}
             onStartExercise={handleStartExercise}
+            onAppMode={setAppMode}
           />
         )}
         {view === 'exercise' && selectedOpening && (
@@ -65,6 +86,7 @@ export default function App() {
           theme={theme}
           onBoardTheme={setBoardTheme}
           onPieceTheme={setPieceTheme}
+          onAppMode={setAppMode}
           onClose={() => setShowThemePanel(false)}
         />
       )}

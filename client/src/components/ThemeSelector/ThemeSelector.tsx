@@ -5,6 +5,7 @@ interface ThemeSelectorProps {
   theme: ThemeConfig;
   onBoardTheme: (t: BoardTheme) => void;
   onPieceTheme: (t: PieceTheme) => void;
+  onAppMode: (m: 'light' | 'dark' | 'system') => void;
   onClose: () => void;
 }
 
@@ -18,11 +19,9 @@ const BOARD_THEMES: { id: BoardTheme; name: string; light: string; dark: string 
 ];
 
 const PIECE_THEMES: { id: PieceTheme; name: string; desc: string; preview: string }[] = [
-  { id: 'standard', name: 'Standard', desc: 'Classic Staunton style', preview: '♔' },
-  { id: 'neo', name: 'Neo', desc: 'Modern flat design', preview: '♚' },
-  { id: 'alpha', name: 'Alpha', desc: 'Bold outline style', preview: '♛' },
-  { id: 'california', name: 'California', desc: 'Warm rounded pieces', preview: '♜' },
-  { id: 'cardinal', name: 'Cardinal', desc: 'Sharp angular design', preview: '♝' },
+  { id: 'wikipedia', name: 'Wikipedia', desc: 'Standard pieces', preview: '♔' },
+  { id: 'alpha', name: 'Alpha', desc: 'Bold outline style', preview: '♚' },
+  { id: 'uscf', name: 'USCF', desc: 'US Chess Federation', preview: '♛' }
 ];
 
 function BoardPreview({ light, dark }: { light: string; dark: string }) {
@@ -41,7 +40,7 @@ function BoardPreview({ light, dark }: { light: string; dark: string }) {
   return <div className="board-preview">{cells}</div>;
 }
 
-export default function ThemeSelector({ theme, onBoardTheme, onPieceTheme, onClose }: ThemeSelectorProps) {
+export default function ThemeSelector({ theme, onBoardTheme, onPieceTheme, onAppMode, onClose }: ThemeSelectorProps) {
   return (
     <div className="theme-overlay" onClick={onClose}>
       <div className="theme-panel" onClick={e => e.stopPropagation()}>
@@ -62,6 +61,24 @@ export default function ThemeSelector({ theme, onBoardTheme, onPieceTheme, onClo
               >
                 <BoardPreview light={t.light} dark={t.dark} />
                 <span className="board-theme-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="theme-section">
+          <div className="theme-section-label">App Appearance</div>
+          <div className="app-mode-options">
+            {(['light', 'dark', 'system'] as const).map(m => (
+              <button
+                key={m}
+                className={`app-mode-btn ${theme.mode === m ? 'active' : ''}`}
+                onClick={() => onAppMode(m)}
+              >
+                <span className="app-mode-icon">
+                  {m === 'light' ? '☀️' : m === 'dark' ? '🌙' : '🖥️'}
+                </span>
+                <span className="app-mode-name">{m}</span>
               </button>
             ))}
           </div>

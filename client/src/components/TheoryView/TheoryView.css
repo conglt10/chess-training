@@ -109,6 +109,13 @@
 }
 .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.ctrl-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-strong);
+  margin: 0 4px;
+}
+
 .ctrl-btn-play {
   width: 48px;
   height: 48px;
@@ -205,4 +212,39 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.theme-mode-panel {
+  margin-top: 0;
+}
+
+.theme-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.theme-mode-btn {
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: capitalize;
+}
+
+.theme-mode-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.theme-mode-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }

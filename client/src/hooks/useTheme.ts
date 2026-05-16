@@ -5,7 +5,8 @@ const STORAGE_KEY = 'chess-trainer-theme';
 
 const defaultTheme: ThemeConfig = {
   board: 'brown',
-  pieces: 'standard',
+  pieces: 'wikipedia',
+  mode: 'dark',
 };
 
 export function useTheme() {
@@ -20,12 +21,31 @@ export function useTheme() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(theme));
-    // Apply CSS variables for board theme
+    
+    // Apply board theme
     document.documentElement.setAttribute('data-board-theme', theme.board);
+    
+    // Apply app mode
+    const applyMode = (m: 'light' | 'dark') => {
+      document.documentElement.classList.remove('light-mode', 'dark-mode');
+      document.documentElement.classList.add(`${m}-mode`);
+    };
+
+    if (theme.mode === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyMode(mediaQuery.matches ? 'dark' : 'light');
+      
+      handleChange(); // Initial check
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    } else {
+      applyMode(theme.mode);
+    }
   }, [theme]);
 
   const setBoardTheme = (board: BoardTheme) => setTheme(t => ({ ...t, board }));
   const setPieceTheme = (pieces: PieceTheme) => setTheme(t => ({ ...t, pieces }));
+  const setAppMode = (mode: AppMode) => setTheme(t => ({ ...t, mode }));
 
-  return { theme, setBoardTheme, setPieceTheme };
+  return { theme, setBoardTheme, setPieceTheme, setAppMode };
 }

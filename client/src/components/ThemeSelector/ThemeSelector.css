@@ -113,6 +113,49 @@
   font-weight: 500;
 }
 
+.app-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.app-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.app-mode-btn:hover {
+  background: var(--bg-hover);
+}
+
+.app-mode-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.app-mode-icon {
+  font-size: 18px;
+}
+
+.app-mode-name {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--text-secondary);
+}
+
+.app-mode-btn.active .app-mode-name {
+  color: var(--accent);
+}
+
 .piece-theme-list {
   display: flex;
   flex-direction: column;

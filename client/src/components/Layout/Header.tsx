@@ -11,7 +11,7 @@ interface HeaderProps {
 export default function Header({ selectedOpening, view, onBack, onShowThemes }: HeaderProps) {
   return (
     <header className="header">
-      <a className="header-logo" href="#">
+      <a className="header-logo" href="/">
         <div className="header-logo-icon">♟</div>
         <div className="header-logo-text">
           <span className="header-logo-title">Chess Trainer</span>
