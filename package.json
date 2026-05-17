@@ -1,0 +1,8 @@
+{ 
+  "scripts": {
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"pnpm --prefix server dev\" \"pnpm --prefix client dev\""
+  },
+	"devDependencies": {
+		"concurrently": "^9.2.1"
+	}
+}

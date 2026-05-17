@@ -1,0 +1,307 @@
+/* ── Popular Openings Tabs ── */
+
+.popular-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Tab bar */
+.popular-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 32px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.popular-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.popular-tab:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.popular-tab--active {
+  background: color-mix(in srgb, var(--tab-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--tab-color) 40%, transparent);
+  color: var(--tab-color);
+}
+
+.popular-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 2px;
+  background: var(--tab-color);
+  border-radius: 2px;
+}
+
+.popular-tab-icon {
+  font-size: 16px;
+}
+
+.popular-tab-label {
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+
+.popular-tab-count {
+  padding: 2px 7px;
+  background: var(--bg-elevated);
+  border-radius: 99px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.popular-tab--active .popular-tab-count {
+  background: color-mix(in srgb, var(--tab-color) 20%, transparent);
+  color: var(--tab-color);
+}
+
+/* Tab header */
+.popular-tab-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 32px;
+  background: color-mix(in srgb, var(--tab-color) 5%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+.popular-tab-header-icon {
+  font-size: 32px;
+  width: 52px;
+  height: 52px;
+  background: color-mix(in srgb, var(--tab-color) 15%, transparent);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.popular-tab-header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+
+.popular-tab-header-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.popular-tab-header-stat {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* Family search */
+.popular-family-search {
+  padding: 12px 32px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.popular-family-search .search-icon {
+  position: absolute;
+  left: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.popular-family-search .search-input {
+  padding-left: 36px;
+}
+
+/* Body */
+.popular-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 32px 32px;
+}
+
+/* Families list */
+.popular-families {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.popular-family {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.popular-family--expanded {
+  border-color: color-mix(in srgb, var(--tab-color) 40%, transparent);
+  box-shadow: 0 2px 16px color-mix(in srgb, var(--tab-color) 10%, transparent);
+}
+
+.popular-family-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+  font-family: var(--font-sans);
+}
+
+.popular-family-header:hover {
+  background: var(--bg-elevated);
+}
+
+.popular-family--expanded .popular-family-header {
+  background: color-mix(in srgb, var(--tab-color) 8%, transparent);
+}
+
+.popular-family-letter {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: white;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.popular-family-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.popular-family-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.popular-family-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popular-family-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.popular-family-chevron {
+  font-size: 18px;
+  color: var(--text-muted);
+  transition: transform var(--transition);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.popular-family-chevron--open {
+  transform: rotate(90deg);
+  color: var(--tab-color);
+}
+
+/* Variations grid inside expanded family */
+.popular-variations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 8px;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  animation: slide-down 0.18s ease-out;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.popular-variation-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-sans);
+  position: relative;
+  overflow: hidden;
+}
+
+.popular-variation-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent-dim), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.popular-variation-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.popular-variation-card:hover::before {
+  opacity: 1;
+}
