@@ -6,8 +6,8 @@
 }
 
 .opening-list-hero {
-  padding: 40px 32px 32px;
-  background: linear-gradient(180deg, rgba(108,138,255,0.06) 0%, transparent 100%);
+  padding: 10px 32px 32px;
+  background: linear-gradient(180deg, rgba(108, 138, 255, 0.06) 0%, transparent 100%);
   border-bottom: 1px solid var(--border);
 }
 
@@ -91,8 +91,15 @@
   transition: all var(--transition);
   outline: none;
 }
-.search-input::placeholder { color: var(--text-muted); }
-.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
 
 .filter-select {
   padding: 10px 14px;
@@ -107,8 +114,14 @@
   transition: all var(--transition);
   min-width: 120px;
 }
-.filter-select:focus { border-color: var(--accent); }
-.filter-select option { background: var(--bg-card); }
+
+.filter-select:focus {
+  border-color: var(--accent);
+}
+
+.filter-select option {
+  background: var(--bg-card);
+}
 
 .opening-list-body {
   flex: 1;
@@ -116,9 +129,13 @@
   padding: 0 32px 32px;
 }
 
-.opening-groups { padding-top: 24px; }
+.opening-groups {
+  padding-top: 24px;
+}
 
-.opening-group { margin-bottom: 32px; }
+.opening-group {
+  margin-bottom: 32px;
+}
 
 .opening-group-header {
   display: flex;
@@ -192,7 +209,9 @@
   box-shadow: var(--shadow-md);
 }
 
-.opening-card:hover::before { opacity: 1; }
+.opening-card:hover::before {
+  opacity: 1;
+}
 
 .opening-card-top {
   display: flex;
@@ -275,4 +294,37 @@
 .pagination-info {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* ── Mode Tab Switcher (Popular / Browse All) ── */
+.ol-mode-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.ol-mode-tab {
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ol-mode-tab:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.ol-mode-tab--active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }

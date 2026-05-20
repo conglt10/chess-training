@@ -2,10 +2,12 @@ import { useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 
 const moveSound = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3');
+const captureSound = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Capture.mp3');
 
-function playSound() {
-  moveSound.currentTime = 0;
-  moveSound.play().catch(() => {});
+function playSound(isCapture = false) {
+  const sound = isCapture ? captureSound : moveSound;
+  sound.currentTime = 0;
+  sound.play().catch(() => {});
 }
 
 interface UseChessGameProps {
@@ -45,7 +47,7 @@ export function useChessGame({ moves, playerColor = 'white' }: UseChessGameProps
         setGame(new Chess(newGame.fen()));
         setCurrentMoveIndex(idx + 1);
         if (idx + 1 >= moves.length) setIsComplete(true);
-        if (playSoundFlag) playSound();
+        if (playSoundFlag) playSound(!!result.captured);
         return true;
       }
     } catch {
@@ -72,7 +74,7 @@ export function useChessGame({ moves, playerColor = 'white' }: UseChessGameProps
         setCurrentMoveIndex(nextIdx);
         setLastWrongMove(null);
         if (nextIdx >= moves.length) setIsComplete(true);
-        playSound();
+        playSound(!!result.captured);
         return 'correct';
       } else {
         setLastWrongMove(result.san);
@@ -95,7 +97,7 @@ export function useChessGame({ moves, playerColor = 'white' }: UseChessGameProps
     setGame(new Chess(newGame.fen()));
     setCurrentMoveIndex(currentMoveIndex - 1);
     setIsComplete(false);
-    playSound();
+    playSound(false);
   }, [currentMoveIndex, moves]);
 
   const stepForward = useCallback(() => {
@@ -104,14 +106,15 @@ export function useChessGame({ moves, playerColor = 'white' }: UseChessGameProps
 
   const fastForwardToEnd = useCallback(() => {
     const newGame = new Chess();
+    let lastResult = null;
     for (const move of moves) {
-      newGame.move(move);
+      lastResult = newGame.move(move);
     }
     gameRef.current = newGame;
     setGame(new Chess(newGame.fen()));
     setCurrentMoveIndex(moves.length);
     setIsComplete(true);
-    playSound();
+    playSound(lastResult ? !!lastResult.captured : false);
   }, [moves]);
 
   return {

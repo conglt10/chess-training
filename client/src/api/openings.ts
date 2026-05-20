@@ -6,6 +6,8 @@ export async function fetchOpenings(params: {
   search?: string;
   eco?: string;
   family?: string;
+  /** Comma-separated exact family names — uses server fast-path (no full load) */
+  families?: string;
   page?: number;
   pageSize?: number;
 }): Promise<OpeningsResponse> {
@@ -13,12 +15,31 @@ export async function fetchOpenings(params: {
   if (params.search) q.set('search', params.search);
   if (params.eco) q.set('eco', params.eco);
   if (params.family) q.set('family', params.family);
+  if (params.families) q.set('families', params.families);
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
 
   const res = await fetch(`${BASE}/openings?${q.toString()}`);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
+}
+
+/**
+ * Fetch only openings belonging to the given family names.
+ * Uses GET /api/openings?families=... (server-side fast-path).
+ * Returns all results in one shot — no pagination needed for curated lists.
+ */
+export async function fetchOpeningsByFamilies(families: string[]): Promise<Opening[]> {
+  if (families.length === 0) return [];
+  const q = new URLSearchParams({
+    families: families.join(','),
+    pageSize: '5000',   // more than enough for any curated list
+  });
+  const res = await fetch(`${BASE}/openings?${q.toString()}`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+  const data: OpeningsResponse = await res.json();
+  return data.openings;
 }
 
 export async function fetchFamilies(): Promise<string[]> {
