@@ -4,15 +4,32 @@ import { Opening } from '../../types';
 import { fetchOpenings } from '../../api/openings';
 import PopularOpenings from './PopularOpenings';
 import MostPopularOpenings from './MostPopularOpenings';
+import FamilyVariations from './FamilyVariations';
 
 interface OpeningListProps {
   onSelect: (opening: Opening) => void;
+  selectedFamily: {
+    name: string;
+    variations: Opening[];
+    description?: string;
+    badge?: string;
+    color?: string;
+    icon?: string;
+  } | null;
+  setSelectedFamily: (family: {
+    name: string;
+    variations: Opening[];
+    description?: string;
+    badge?: string;
+    color?: string;
+    icon?: string;
+  } | null) => void;
 }
 
 const ECO_GROUPS = ['A', 'B', 'C', 'D', 'E'];
 type ListMode = 'top' | 'popular' | 'browse';
 
-export default function OpeningList({ onSelect }: OpeningListProps) {
+export default function OpeningList({ onSelect, selectedFamily, setSelectedFamily }: OpeningListProps) {
   const [mode, setMode] = useState<ListMode>('top');
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [total, setTotal] = useState(0);
@@ -52,6 +69,18 @@ export default function OpeningList({ onSelect }: OpeningListProps) {
 
   const families = Object.keys(grouped).sort();
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  if (selectedFamily) {
+    return (
+      <div className="opening-list-container">
+        <FamilyVariations
+          family={selectedFamily}
+          onBack={() => setSelectedFamily(null)}
+          onSelect={onSelect}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="opening-list-container">
@@ -104,12 +133,12 @@ export default function OpeningList({ onSelect }: OpeningListProps) {
 
       {/* ── Most Popular mode ── */}
       {mode === 'top' && (
-        <MostPopularOpenings onSelect={onSelect} />
+        <MostPopularOpenings onSelect={onSelect} onSelectFamily={setSelectedFamily} />
       )}
 
       {/* ── Classify mode ── */}
       {mode === 'popular' && (
-        <PopularOpenings onSelect={onSelect} />
+        <PopularOpenings onSelect={onSelect} onSelectFamily={setSelectedFamily} />
       )}
 
       {/* ── Browse-all mode ── */}

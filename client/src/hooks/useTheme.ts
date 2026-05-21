@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ThemeConfig, BoardTheme, PieceTheme } from '../types';
+import { ThemeConfig, BoardTheme, PieceTheme, AppMode } from '../types';
 
 const STORAGE_KEY = 'chess-trainer-theme';
 

@@ -5,6 +5,12 @@ import { fetchOpenings } from '../../api/openings';
 
 interface PopularOpeningsProps {
   onSelect: (opening: Opening) => void;
+  onSelectFamily: (familyData: {
+    name: string;
+    variations: Opening[];
+    color?: string;
+    icon?: string;
+  }) => void;
 }
 
 type FirstMove = '1.e4' | '1.d4' | 'Other';
@@ -36,11 +42,10 @@ function classifyFirstMove(opening: Opening): FirstMove {
   return 'Other';
 }
 
-export default function PopularOpenings({ onSelect }: PopularOpeningsProps) {
+export default function PopularOpenings({ onSelect, onSelectFamily }: PopularOpeningsProps) {
   const [allOpenings, setAllOpenings] = useState<Opening[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FirstMove>('1.e4');
-  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -65,9 +70,8 @@ export default function PopularOpenings({ onSelect }: PopularOpeningsProps) {
     return () => { cancelled = true; };
   }, []);
 
-  // Reset expanded family when tab changes
+  // Reset search when tab changes
   useEffect(() => {
-    setExpandedFamily(null);
     setSearch('');
   }, [activeTab]);
 
@@ -164,14 +168,20 @@ export default function PopularOpenings({ onSelect }: PopularOpeningsProps) {
           <div className="popular-families">
             {filteredFamilies.map(family => {
               const variations = grouped[family];
-              const isExpanded = expandedFamily === family;
               return (
-                <div key={family} className={`popular-family ${isExpanded ? 'popular-family--expanded' : ''}`}>
+                <div key={family} className="popular-family">
                   <button
                     id={`family-${family.replace(/\s+/g, '-').toLowerCase()}`}
                     className="popular-family-header"
                     style={{ '--tab-color': meta.color } as React.CSSProperties}
-                    onClick={() => setExpandedFamily(isExpanded ? null : family)}
+                    onClick={() =>
+                      onSelectFamily({
+                        name: family,
+                        variations,
+                        color: meta.color,
+                        icon: meta.icon,
+                      })
+                    }
                   >
                     <div className="popular-family-letter" style={{ background: meta.color }}>
                       {family.charAt(0).toUpperCase()}
@@ -186,42 +196,10 @@ export default function PopularOpenings({ onSelect }: PopularOpeningsProps) {
                     <span className="popular-family-count">
                       {variations.length} variation{variations.length !== 1 ? 's' : ''}
                     </span>
-                    <span className={`popular-family-chevron ${isExpanded ? 'popular-family-chevron--open' : ''}`}>
+                    <span className="popular-family-chevron">
                       ›
                     </span>
                   </button>
-
-                  {isExpanded && (
-                    <div className="popular-variations">
-                      {variations.map((opening, i) => (
-                        <button
-                          key={`${opening.eco}-${i}`}
-                          id={`variation-${opening.eco}-${i}`}
-                          className="popular-variation-card"
-                          onClick={() => onSelect(opening)}
-                        >
-                          <div className="opening-card-top">
-                            <span className="opening-card-name">{opening.name}</span>
-                            <span className="badge badge-gold">{opening.eco}</span>
-                          </div>
-                          <div className="opening-card-moves">
-                            {opening.moves.slice(0, 8).map((m, mi) => (
-                              <span key={mi} className="move-chip">{m}</span>
-                            ))}
-                            {opening.moves.length > 8 && (
-                              <span className="move-chip">+{opening.moves.length - 8}</span>
-                            )}
-                          </div>
-                          <div className="opening-card-footer">
-                            <span className="badge badge-accent">
-                              {Math.ceil(opening.moves.length / 2)} moves
-                            </span>
-                            <span className="opening-card-length">{opening.moves.length} plies</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}

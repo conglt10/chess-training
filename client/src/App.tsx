@@ -18,6 +18,14 @@ export default function App() {
     const stored = localStorage.getItem(OPENING_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   });
+  const [selectedFamily, setSelectedFamily] = useState<{
+    name: string;
+    variations: Opening[];
+    description?: string;
+    badge?: string;
+    color?: string;
+    icon?: string;
+  } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
 
@@ -62,7 +70,11 @@ export default function App() {
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {view === 'list' && (
-          <OpeningList onSelect={handleSelectOpening} />
+          <OpeningList
+            onSelect={handleSelectOpening}
+            selectedFamily={selectedFamily}
+            setSelectedFamily={setSelectedFamily}
+          />
         )}
         {view === 'theory' && selectedOpening && (
           <TheoryView
