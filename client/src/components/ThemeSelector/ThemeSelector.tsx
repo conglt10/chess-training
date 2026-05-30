@@ -19,9 +19,10 @@ const BOARD_THEMES: { id: BoardTheme; name: string; light: string; dark: string 
 ];
 
 const PIECE_THEMES: { id: PieceTheme; name: string; desc: string; preview: string }[] = [
-  { id: 'wikipedia', name: 'Wikipedia', desc: 'Standard pieces', preview: '♔' },
+  { id: 'neo', name: 'Neo', desc: 'Chess.com Neo style', preview: '♔' },
+  { id: 'wikipedia', name: 'Wikipedia', desc: 'Standard pieces', preview: '♕' },
   { id: 'alpha', name: 'Alpha', desc: 'Bold outline style', preview: '♚' },
-  { id: 'uscf', name: 'USCF', desc: 'US Chess Federation', preview: '♛' }
+  { id: 'uscf', name: 'USCF', desc: 'US Chess Federation', preview: '♛' },
 ];
 
 function BoardPreview({ light, dark }: { light: string; dark: string }) {
