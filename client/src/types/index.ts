@@ -13,7 +13,7 @@ export interface OpeningsResponse {
   pageSize: number;
 }
 
-export type BoardTheme = 'brown' | 'blue' | 'green' | 'purple' | 'dark' | 'ice';
+export type BoardTheme = 'brown' | 'blue' | 'green' | 'purple' | 'dark' | 'ice' | 'walnut' | 'maple' | 'mahogany';
 
 export type PieceTheme = 'neo' | 'wikipedia' | 'alpha' | 'uscf' | 'classic' | 'business' | 'chess24';
 
@@ -25,7 +25,7 @@ export interface ThemeConfig {
   mode: AppMode;
 }
 
-export type AppView = 'list' | 'theory' | 'exercise';
+export type AppView = 'list' | 'theory' | 'exercise' | 'vision';
 
 export interface MoveEntry {
   moveNumber: number;

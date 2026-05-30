@@ -3,6 +3,7 @@ import Header from './components/Layout/Header';
 import OpeningList from './components/OpeningList/OpeningList';
 import TheoryView from './components/TheoryView/TheoryView';
 import ExerciseView from './components/ExerciseView/ExerciseView';
+import VisionTraining from './components/VisionTraining/VisionTraining';
 import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
 import { AppView, Opening } from './types';
@@ -18,6 +19,7 @@ export default function App() {
     const stored = localStorage.getItem(OPENING_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   });
+  const [selectedFamily, setSelectedFamily] = useState<{ family: string; variations: Opening[]; color: string } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
 
@@ -41,6 +43,7 @@ export default function App() {
   const handleBackToList = () => {
     setView('list');
     setSelectedOpening(null);
+    // selectedFamily is intentionally preserved so the user returns to the family variations page
   };
 
   const handleStartExercise = () => {
@@ -58,11 +61,17 @@ export default function App() {
         selectedOpening={selectedOpening}
         onBack={view === 'theory' ? handleBackToList : undefined}
         onShowThemes={() => setShowThemePanel(true)}
+        onViewChange={setView}
       />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {view === 'list' && (
-          <OpeningList onSelect={handleSelectOpening} />
+          <OpeningList
+            onSelect={handleSelectOpening}
+            selectedFamily={selectedFamily}
+            onFamilySelect={setSelectedFamily}
+            onFamilyClear={() => setSelectedFamily(null)}
+          />
         )}
         {view === 'theory' && selectedOpening && (
           <TheoryView
@@ -78,6 +87,9 @@ export default function App() {
             theme={theme}
             onBackToTheory={handleBackToTheory}
           />
+        )}
+        {view === 'vision' && (
+          <VisionTraining theme={theme} />
         )}
       </main>
 

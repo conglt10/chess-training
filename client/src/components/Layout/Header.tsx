@@ -1,17 +1,18 @@
 import './Header.css';
-import { Opening } from '../../types';
+import { Opening, AppView } from '../../types';
 
 interface HeaderProps {
   selectedOpening?: Opening | null;
-  view: 'list' | 'theory' | 'exercise';
+  view: AppView;
   onBack?: () => void;
   onShowThemes: () => void;
+  onViewChange: (view: AppView) => void;
 }
 
-export default function Header({ selectedOpening, view, onBack, onShowThemes }: HeaderProps) {
+export default function Header({ selectedOpening, view, onBack, onShowThemes, onViewChange }: HeaderProps) {
   return (
     <header className="header">
-      <a className="header-logo" href="/">
+      <a className="header-logo" href="/" onClick={(e) => { e.preventDefault(); onViewChange('list'); }}>
         <div className="header-logo-icon">♟</div>
         <div className="header-logo-text">
           <span className="header-logo-title">Chess Trainer</span>
@@ -19,17 +20,33 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes }: 
         </div>
       </a>
 
-      {selectedOpening && view !== 'list' && (
+      {selectedOpening && view !== 'list' && view !== 'vision' && (
         <div className="header-opening-info">
           <span className="badge badge-gold">{selectedOpening.eco}</span>
           <span className="header-opening-name">{selectedOpening.name}</span>
         </div>
       )}
 
+      {/* Navigation tabs */}
+      <nav className="header-nav">
+        <button
+          className={`header-nav-btn ${view !== 'vision' ? 'active' : ''}`}
+          onClick={() => onViewChange('list')}
+        >
+          📖 Repertoire
+        </button>
+        <button
+          className={`header-nav-btn ${view === 'vision' ? 'active' : ''}`}
+          onClick={() => onViewChange('vision')}
+        >
+          🎯 Vision Training
+        </button>
+      </nav>
+
       <div className="header-spacer" />
 
       <div className="header-actions">
-        {view !== 'list' && onBack && (
+        {view !== 'list' && view !== 'vision' && onBack && (
           <button className="header-back-btn" onClick={onBack}>
             ← Back to Openings
           </button>

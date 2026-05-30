@@ -105,6 +105,18 @@
   --board-light: #dce9f5;
   --board-dark: #5b85a4;
 }
+[data-board-theme="walnut"] {
+  --board-light: #d4a96a;
+  --board-dark: #6b3a1f;
+}
+[data-board-theme="maple"] {
+  --board-light: #f2c98a;
+  --board-dark: #a0522d;
+}
+[data-board-theme="mahogany"] {
+  --board-light: #c8956c;
+  --board-dark: #4a1a0e;
+}
 
 /* ---------- Reset ---------- */
 *, *::before, *::after {

@@ -10,12 +10,15 @@ interface ThemeSelectorProps {
 }
 
 const BOARD_THEMES: { id: BoardTheme; name: string; light: string; dark: string }[] = [
-  { id: 'brown', name: 'Classic', light: '#f0d9b5', dark: '#b58863' },
-  { id: 'blue', name: 'Ocean', light: '#dee3e6', dark: '#8ca2ad' },
-  { id: 'green', name: 'Forest', light: '#ffffdd', dark: '#86a666' },
-  { id: 'purple', name: 'Royale', light: '#e8d5f5', dark: '#7c4d99' },
-  { id: 'dark', name: 'Midnight', light: '#4a4a6a', dark: '#1e1e3a' },
-  { id: 'ice', name: 'Ice', light: '#dce9f5', dark: '#5b85a4' },
+  { id: 'brown',    name: 'Classic',   light: '#f0d9b5', dark: '#b58863' },
+  { id: 'blue',     name: 'Ocean',     light: '#dee3e6', dark: '#8ca2ad' },
+  { id: 'green',    name: 'Forest',    light: '#ffffdd', dark: '#86a666' },
+  { id: 'purple',   name: 'Royale',    light: '#e8d5f5', dark: '#7c4d99' },
+  { id: 'dark',     name: 'Midnight',  light: '#4a4a6a', dark: '#1e1e3a' },
+  { id: 'ice',      name: 'Ice',       light: '#dce9f5', dark: '#5b85a4' },
+  { id: 'walnut',   name: 'Walnut',    light: '#d4a96a', dark: '#6b3a1f' },
+  { id: 'maple',    name: 'Maple',     light: '#f2c98a', dark: '#a0522d' },
+  { id: 'mahogany', name: 'Mahogany',  light: '#c8956c', dark: '#4a1a0e' },
 ];
 
 const PIECE_THEMES: { id: PieceTheme; name: string; desc: string; preview: string }[] = [

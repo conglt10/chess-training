@@ -5,6 +5,7 @@ import { fetchOpeningsByFamilies } from '../../api/openings';
 
 interface MostPopularOpeningsProps {
   onSelect: (opening: Opening) => void;
+  onFamilySelect: (family: string, variations: Opening[], color: string) => void;
 }
 
 // ── Curated list from chess.com/openings ─────────────────────────────────────
@@ -100,9 +101,8 @@ const CURATED: CuratedGroup[] = [
 // Per-group opening cache: groupId → family → Opening[]
 type GroupCache = Record<string, Record<string, Opening[]>>;
 
-export default function MostPopularOpenings({ onSelect }: MostPopularOpeningsProps) {
+export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPopularOpeningsProps) {
   const [activeGroup, setActiveGroup] = useState<string>('e4');
-  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
   // Each group loads lazily on first visit
   const [groupCache, setGroupCache] = useState<GroupCache>({});
   const [loadingGroup, setLoadingGroup] = useState<string | null>('e4');
@@ -137,7 +137,7 @@ export default function MostPopularOpenings({ onSelect }: MostPopularOpeningsPro
   }, [activeGroup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset expanded family when switching groups
-  useEffect(() => { setExpandedFamily(null); }, [activeGroup]);
+  useEffect(() => { }, [activeGroup]);
 
   const dbByFamily = useMemo(
     () => groupCache[activeGroup] ?? {},
@@ -225,19 +225,18 @@ export default function MostPopularOpenings({ onSelect }: MostPopularOpeningsPro
           <div className="mpo-list">
             {currentGroup.openings.map((entry, idx) => {
               const variations = getVariations(entry.family);
-              const isExpanded = expandedFamily === entry.family;
               const hasVariations = variations.length > 0;
 
               return (
                 <div
                   key={entry.family}
-                  className={`mpo-entry ${isExpanded ? 'mpo-entry--expanded' : ''}`}
+                  className="mpo-entry"
                   style={{ '--g-color': currentGroup.color } as React.CSSProperties}
                 >
                   <button
                     id={`mpo-entry-${idx}`}
                     className="mpo-entry-header"
-                    onClick={() => hasVariations && setExpandedFamily(isExpanded ? null : entry.family)}
+                    onClick={() => hasVariations && onFamilySelect(entry.family, variations, currentGroup.color)}
                   >
                     {/* Rank number */}
                     <span className="mpo-entry-rank" style={{ color: currentGroup.color }}>
@@ -269,40 +268,9 @@ export default function MostPopularOpenings({ onSelect }: MostPopularOpeningsPro
 
                     {/* Chevron */}
                     {hasVariations && (
-                      <span className={`mpo-entry-chevron ${isExpanded ? 'mpo-entry-chevron--open' : ''}`}>›</span>
+                      <span className="mpo-entry-chevron">›</span>
                     )}
                   </button>
-
-                  {/* Expanded variations grid */}
-                  {isExpanded && (
-                    <div className="mpo-variations">
-                      {variations.map((opening, vi) => (
-                        <button
-                          key={`${opening.eco}-${vi}`}
-                          id={`mpo-var-${opening.eco}-${vi}`}
-                          className="mpo-variation-card"
-                          onClick={() => onSelect(opening)}
-                        >
-                          <div className="opening-card-top">
-                            <span className="opening-card-name">{opening.name}</span>
-                            <span className="badge badge-gold">{opening.eco}</span>
-                          </div>
-                          <div className="opening-card-moves">
-                            {opening.moves.slice(0, 8).map((m, mi) => (
-                              <span key={mi} className="move-chip">{m}</span>
-                            ))}
-                            {opening.moves.length > 8 && (
-                              <span className="move-chip">+{opening.moves.length - 8}</span>
-                            )}
-                          </div>
-                          <div className="opening-card-footer">
-                            <span className="badge badge-accent">{Math.ceil(opening.moves.length / 2)} moves</span>
-                            <span className="opening-card-length">{opening.moves.length} plies</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}
