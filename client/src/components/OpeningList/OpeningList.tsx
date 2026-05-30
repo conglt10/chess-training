@@ -4,15 +4,19 @@ import { Opening } from '../../types';
 import { fetchOpenings } from '../../api/openings';
 import PopularOpenings from './PopularOpenings';
 import MostPopularOpenings from './MostPopularOpenings';
+import FamilyVariationsView from './FamilyVariationsView';
 
 interface OpeningListProps {
   onSelect: (opening: Opening) => void;
+  selectedFamily: { family: string; variations: Opening[]; color: string } | null;
+  onFamilySelect: (family: { family: string; variations: Opening[]; color: string } | null) => void;
+  onFamilyClear: () => void;
 }
 
 const ECO_GROUPS = ['A', 'B', 'C', 'D', 'E'];
 type ListMode = 'top' | 'popular' | 'browse';
 
-export default function OpeningList({ onSelect }: OpeningListProps) {
+export default function OpeningList({ onSelect, selectedFamily, onFamilySelect, onFamilyClear }: OpeningListProps) {
   const [mode, setMode] = useState<ListMode>('top');
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [total, setTotal] = useState(0);
@@ -42,6 +46,10 @@ export default function OpeningList({ onSelect }: OpeningListProps) {
 
   useEffect(() => { setPage(1); }, [search, ecoFilter]);
 
+  const handleFamilySelect = (family: string, variations: Opening[], color: string) => {
+    onFamilySelect({ family, variations, color });
+  };
+
   // Group openings by family name
   const grouped = openings.reduce<Record<string, Opening[]>>((acc, o) => {
     const key = o.family;
@@ -52,6 +60,19 @@ export default function OpeningList({ onSelect }: OpeningListProps) {
 
   const families = Object.keys(grouped).sort();
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // When a family is selected, show its variations as a full-page replacement
+  if (selectedFamily) {
+    return (
+      <FamilyVariationsView
+        family={selectedFamily.family}
+        variations={selectedFamily.variations}
+        color={selectedFamily.color}
+        onSelect={onSelect}
+        onBack={onFamilyClear}
+      />
+    );
+  }
 
   return (
     <div className="opening-list-container">
@@ -104,12 +125,12 @@ export default function OpeningList({ onSelect }: OpeningListProps) {
 
       {/* ── Most Popular mode ── */}
       {mode === 'top' && (
-        <MostPopularOpenings onSelect={onSelect} />
+        <MostPopularOpenings onSelect={onSelect} onFamilySelect={handleFamilySelect} />
       )}
 
       {/* ── Classify mode ── */}
       {mode === 'popular' && (
-        <PopularOpenings onSelect={onSelect} />
+        <PopularOpenings onSelect={onSelect} onFamilySelect={handleFamilySelect} />
       )}
 
       {/* ── Browse-all mode ── */}
