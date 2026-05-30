@@ -15,7 +15,7 @@ export interface OpeningsResponse {
 
 export type BoardTheme = 'brown' | 'blue' | 'green' | 'purple' | 'dark' | 'ice';
 
-export type PieceTheme = 'wikipedia' | 'alpha' | 'uscf' | 'classic' | 'business' | 'chess24';
+export type PieceTheme = 'neo' | 'wikipedia' | 'alpha' | 'uscf' | 'classic' | 'business' | 'chess24';
 
 export type AppMode = 'light' | 'dark' | 'system';
 

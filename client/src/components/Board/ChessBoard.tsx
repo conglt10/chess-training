@@ -3,6 +3,7 @@ import { Chessboard } from 'react-chessboard';
 import type { Square, Piece } from 'react-chessboard/dist/chessboard/types';
 import './ChessBoard.css';
 import { ThemeConfig, BoardTheme } from '../../types';
+import { getPieceImageUrl, PIECE_CODES } from '../../pieces/themes';
 
 interface ChessBoardProps {
   fen: string;
@@ -22,29 +23,23 @@ const BOARD_COLORS: Record<BoardTheme, { light: string; dark: string; highlight:
   ice: { light: '#dce9f5', dark: '#5b85a4', highlight: 'rgba(255,255,0,0.4)' },
 };
 
-function makePieceRenderer(pieceTheme: string) {
-  const pieces = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'];
-
+function makePieceRenderer(pieceTheme: ThemeConfig['pieces']) {
   return Object.fromEntries(
-    pieces.map((piece) => {
-      let themeDir = pieceTheme;
-
-      return [
-        piece,
-        ({ squareWidth }: { squareWidth: number }) => (
-          <div
-            style={{
-              width: squareWidth,
-              height: squareWidth,
-              backgroundImage: `url(https://chessboardjs.com/img/chesspieces/${themeDir}/${piece}.png)`,
-              backgroundSize: '100%',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center',
-            }}
-          />
-        ),
-      ];
-    })
+    PIECE_CODES.map((piece) => [
+      piece,
+      ({ squareWidth }: { squareWidth: number }) => (
+        <div
+          style={{
+            width: squareWidth,
+            height: squareWidth,
+            backgroundImage: `url(${getPieceImageUrl(pieceTheme, piece)})`,
+            backgroundSize: '100%',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+          }}
+        />
+      ),
+    ])
   ) as Record<string, React.FC<{ squareWidth: number }>>;
 }
 

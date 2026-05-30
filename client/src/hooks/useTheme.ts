@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ThemeConfig, BoardTheme, PieceTheme } from '../types';
+import { ThemeConfig, BoardTheme, PieceTheme, AppMode } from '../types';
+import { DEFAULT_PIECE_THEME } from '../pieces/themes';
 
 const STORAGE_KEY = 'chess-trainer-theme';
 
 const defaultTheme: ThemeConfig = {
   board: 'brown',
-  pieces: 'wikipedia',
+  pieces: DEFAULT_PIECE_THEME,
   mode: 'dark',
 };
 
