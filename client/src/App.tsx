@@ -4,6 +4,7 @@ import OpeningList from './components/OpeningList/OpeningList';
 import TheoryView from './components/TheoryView/TheoryView';
 import ExerciseView from './components/ExerciseView/ExerciseView';
 import VisionTraining from './components/VisionTraining/VisionTraining';
+import PlayWithCoach from './components/CoachGame/PlayWithCoach';
 import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
 import { AppView, Opening } from './types';
@@ -22,6 +23,21 @@ export default function App() {
   const [selectedFamily, setSelectedFamily] = useState<{ family: string; variations: Opening[]; color: string } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
+
+  // Handle ?#opening=<encoded> links (e.g. opened in new tab from FamilyVariationsView)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#opening=')) {
+      try {
+        const opening: Opening = JSON.parse(decodeURIComponent(hash.slice('#opening='.length)));
+        setSelectedOpening(opening);
+        setView('theory');
+      } catch {
+        // Ignore malformed hash
+      }
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -90,6 +106,9 @@ export default function App() {
         )}
         {view === 'vision' && (
           <VisionTraining theme={theme} />
+        )}
+        {view === 'coach' && (
+          <PlayWithCoach theme={theme} />
         )}
       </main>
 

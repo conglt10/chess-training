@@ -20,7 +20,7 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
         </div>
       </a>
 
-      {selectedOpening && view !== 'list' && view !== 'vision' && (
+      {selectedOpening && view !== 'list' && view !== 'vision' && view !== 'coach' && (
         <div className="header-opening-info">
           <span className="badge badge-gold">{selectedOpening.eco}</span>
           <span className="header-opening-name">{selectedOpening.name}</span>
@@ -30,7 +30,7 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
       {/* Navigation tabs */}
       <nav className="header-nav">
         <button
-          className={`header-nav-btn ${view !== 'vision' ? 'active' : ''}`}
+          className={`header-nav-btn ${view !== 'vision' && view !== 'coach' ? 'active' : ''}`}
           onClick={() => onViewChange('list')}
         >
           📖 Repertoire
@@ -41,12 +41,18 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
         >
           🎯 Vision Training
         </button>
+        <button
+          className={`header-nav-btn ${view === 'coach' ? 'active' : ''}`}
+          onClick={() => onViewChange('coach')}
+        >
+          🤖 Play with Coach
+        </button>
       </nav>
 
       <div className="header-spacer" />
 
       <div className="header-actions">
-        {view !== 'list' && view !== 'vision' && onBack && (
+        {view !== 'list' && view !== 'vision' && view !== 'coach' && onBack && (
           <button className="header-back-btn" onClick={onBack}>
             ← Back to Openings
           </button>

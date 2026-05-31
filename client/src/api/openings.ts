@@ -1,4 +1,4 @@
-import { Opening, OpeningsResponse } from '../types';
+import { Opening, OpeningsResponse, FamilySummariesResponse, FirstMoveTab } from '../types';
 
 const BASE = '/api';
 
@@ -47,6 +47,22 @@ export async function fetchFamilies(): Promise<string[]> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   const data = await res.json();
   return data.families;
+}
+
+export async function fetchFamilySummaries(params: {
+  firstMove?: FirstMoveTab;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<FamilySummariesResponse> {
+  const q = new URLSearchParams();
+  if (params.firstMove) q.set('firstMove', params.firstMove);
+  if (params.search)    q.set('search',    params.search);
+  if (params.page)      q.set('page',      String(params.page));
+  if (params.pageSize)  q.set('pageSize',  String(params.pageSize));
+  const res = await fetch(`${BASE}/openings/families?${q.toString()}`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchOpening(eco: string, name: string): Promise<Opening> {

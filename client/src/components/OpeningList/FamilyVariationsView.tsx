@@ -1,6 +1,10 @@
 import { Opening } from '../../types';
 import './FamilyVariationsView.css';
 
+function openingHref(opening: Opening): string {
+  return `#opening=${encodeURIComponent(JSON.stringify(opening))}`;
+}
+
 interface FamilyVariationsViewProps {
   family: string;
   variations: Opening[];
@@ -38,12 +42,13 @@ export default function FamilyVariationsView({
       <div className="fvv-body">
         <div className="fvv-grid">
           {variations.map((opening, i) => (
-            <button
+            <a
               key={`${opening.eco}-${i}`}
               id={`fvv-card-${opening.eco}-${i}`}
+              href={openingHref(opening)}
               className="fvv-card"
               style={{ '--fvv-color': color } as React.CSSProperties}
-              onClick={() => onSelect(opening)}
+              onClick={(e) => { e.preventDefault(); onSelect(opening); }}
             >
               <div className="fvv-card-top">
                 <span className="fvv-card-name">{opening.name}</span>
@@ -61,7 +66,7 @@ export default function FamilyVariationsView({
                 <span className="badge badge-accent">{Math.ceil(opening.moves.length / 2)} moves</span>
                 <span className="fvv-card-plies">{opening.moves.length} plies</span>
               </div>
-            </button>
+            </a>
           ))}
         </div>
       </div>

@@ -11,5 +11,14 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    headers: {
+      // Required for SharedArrayBuffer — not needed by lite-single, but good hygiene
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  // Do not let Vite pre-bundle or transform the stockfish static assets
+  optimizeDeps: {
+    exclude: ['stockfish'],
   },
 });

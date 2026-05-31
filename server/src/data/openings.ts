@@ -117,6 +117,103 @@ export function getOpeningsByFamilies(families: string[]): Opening[] {
   return result;
 }
 
+// ── First-move classifier ─────────────────────────────────────────────────────
+export type FirstMoveTab = 'e4' | 'd4' | 'other';
+
+function classifyFirstMove(opening: Opening): FirstMoveTab {
+  const first = opening.moves[0]?.toLowerCase();
+  if (first === 'e4') return 'e4';
+  if (first === 'd4') return 'd4';
+  return 'other';
+}
+
+export interface FamilySummary {
+  name: string;
+  /** Total number of variations in this family */
+  count: number;
+  /** First 4 moves of the representative (first) variation */
+  previewMoves: string[];
+}
+
+export interface FamilySummariesResponse {
+  families: FamilySummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Total variation counts per tab (for the tab badge) */
+  tabCounts: Record<FirstMoveTab, number>;
+}
+
+/**
+ * Returns paginated family summaries, optionally filtered by firstMove tab
+ * and/or a family name search string.
+ *
+ * Intended for the "Classify Openings" view — avoids sending the full
+ * openings payload to the client.
+ */
+export function getFamilySummaries(opts: {
+  firstMove?: FirstMoveTab;
+  search?: string;
+  page: number;
+  pageSize: number;
+}): FamilySummariesResponse {
+  const all = getAllOpenings();
+
+  // Build per-tab family maps once per call (data is already in memory)
+  const tabFamilyMap: Record<FirstMoveTab, Map<string, Opening[]>> = {
+    e4:    new Map(),
+    d4:    new Map(),
+    other: new Map(),
+  };
+  const tabCounts: Record<FirstMoveTab, number> = { e4: 0, d4: 0, other: 0 };
+
+  for (const o of all) {
+    const tab = classifyFirstMove(o);
+    tabCounts[tab]++;
+    const map = tabFamilyMap[tab];
+    if (!map.has(o.family)) map.set(o.family, []);
+    map.get(o.family)!.push(o);
+  }
+
+  // Select the map for the requested tab (or all families merged if no tab)
+  let familyMap: Map<string, Opening[]>;
+  if (opts.firstMove) {
+    familyMap = tabFamilyMap[opts.firstMove];
+  } else {
+    // Merge all tabs
+    familyMap = new Map();
+    for (const tab of (['e4', 'd4', 'other'] as FirstMoveTab[])) {
+      for (const [name, rows] of tabFamilyMap[tab]) {
+        if (!familyMap.has(name)) familyMap.set(name, []);
+        familyMap.get(name)!.push(...rows);
+      }
+    }
+  }
+
+  // Apply family-name search filter and sort
+  const lower = (opts.search ?? '').toLowerCase().trim();
+  let familyNames = [...familyMap.keys()].sort();
+  if (lower) {
+    familyNames = familyNames.filter(n => n.toLowerCase().includes(lower));
+  }
+
+  const total = familyNames.length;
+  const { page, pageSize } = opts;
+  const start = (page - 1) * pageSize;
+  const pageNames = familyNames.slice(start, start + pageSize);
+
+  const families: FamilySummary[] = pageNames.map(name => {
+    const variations = familyMap.get(name)!;
+    return {
+      name,
+      count: variations.length,
+      previewMoves: variations[0]?.moves.slice(0, 4) ?? [],
+    };
+  });
+
+  return { families, total, page, pageSize, tabCounts };
+}
+
 /**
  * Backwards-compatible alias used by the server entry point.
  */

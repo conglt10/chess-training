@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './PopularOpenings.css';
 import { Opening } from '../../types';
-import { fetchOpenings } from '../../api/openings';
+import type { FamilySummary, FirstMoveTab } from '../../types';
+import { fetchFamilySummaries, fetchOpenings } from '../../api/openings';
 
 interface PopularOpeningsProps {
   onSelect: (opening: Opening) => void;
@@ -9,6 +10,7 @@ interface PopularOpeningsProps {
 }
 
 type FirstMove = '1.e4' | '1.d4' | 'Other';
+const TAB_API: Record<FirstMove, FirstMoveTab> = { '1.e4': 'e4', '1.d4': 'd4', Other: 'other' };
 
 const TABS: FirstMove[] = ['1.e4', '1.d4', 'Other'];
 
@@ -30,72 +32,66 @@ const TAB_META: Record<FirstMove, { icon: string; desc: string; color: string }>
   },
 };
 
-function classifyFirstMove(opening: Opening): FirstMove {
-  const first = opening.moves[0]?.toLowerCase();
-  if (first === 'e4') return '1.e4';
-  if (first === 'd4') return '1.d4';
-  return 'Other';
-}
+const FAMILIES_PER_PAGE = 20;
 
 export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpeningsProps) {
-  const [allOpenings, setAllOpenings] = useState<Opening[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FirstMove>('1.e4');
   const [search, setSearch] = useState('');
+  const [familyPage, setFamilyPage] = useState(1);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [families, setFamilies] = useState<FamilySummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [tabCounts, setTabCounts] = useState<Record<FirstMoveTab, number>>({ e4: 0, d4: 0, other: 0 });
+  const [loading, setLoading] = useState(true);
+  const [loadingVariations, setLoadingVariations] = useState<string | null>(null);
+
+  // Load paginated family summaries from backend
+  const load = useCallback(async (
+    tab: FirstMove,
+    q: string,
+    page: number,
+  ) => {
     setLoading(true);
-    // Load all openings (large page size)
-    fetchOpenings({ pageSize: 100, page: 1 })
-      .then(async (page1) => {
-        if (cancelled) return;
-        const total = page1.total;
-        const pages = Math.ceil(total / 100);
-        let all = [...page1.openings];
-        for (let p = 2; p <= pages; p++) {
-          const more = await fetchOpenings({ pageSize: 100, page: p });
-          if (cancelled) return;
-          all = [...all, ...more.openings];
-        }
-        setAllOpenings(all);
-      })
-      .catch(console.error)
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    try {
+      const data = await fetchFamilySummaries({
+        firstMove: TAB_API[tab],
+        search: q,
+        page,
+        pageSize: FAMILIES_PER_PAGE,
+      });
+      setFamilies(data.families);
+      setTotal(data.total);
+      setTabCounts(data.tabCounts);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Reset search when tab changes
+  // Debounced reload on filter/page/tab change
   useEffect(() => {
-    setSearch('');
-  }, [activeTab]);
+    const t = setTimeout(() => load(activeTab, search, familyPage), 250);
+    return () => clearTimeout(t);
+  }, [activeTab, search, familyPage, load]);
 
-  const grouped = useMemo(() => {
-    const inTab = allOpenings.filter(o => classifyFirstMove(o) === activeTab);
-    const result: Record<string, Opening[]> = {};
-    for (const o of inTab) {
-      const key = o.family;
-      if (!result[key]) result[key] = [];
-      result[key].push(o);
+  // Reset page on tab or search change
+  useEffect(() => { setFamilyPage(1); }, [activeTab, search]);
+
+  // When a family row is clicked, load its variations then hand off to parent
+  const handleFamilyClick = useCallback(async (summary: FamilySummary, color: string) => {
+    setLoadingVariations(summary.name);
+    try {
+      const data = await fetchOpenings({ family: summary.name, pageSize: 500 });
+      onFamilySelect(summary.name, data.openings, color);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingVariations(null);
     }
-    return result;
-  }, [allOpenings, activeTab]);
+  }, [onFamilySelect]);
 
-  const filteredFamilies = useMemo(() => {
-    const lower = search.toLowerCase();
-    return Object.keys(grouped)
-      .filter(f => !lower || f.toLowerCase().includes(lower))
-      .sort();
-  }, [grouped, search]);
-
-  const tabCounts = useMemo<Record<FirstMove, number>>(() => {
-    const counts: Record<FirstMove, number> = { '1.e4': 0, '1.d4': 0, Other: 0 };
-    for (const o of allOpenings) {
-      counts[classifyFirstMove(o)]++;
-    }
-    return counts;
-  }, [allOpenings]);
-
+  const totalPages = Math.ceil(total / FAMILIES_PER_PAGE);
   const meta = TAB_META[activeTab];
 
   return (
@@ -113,7 +109,9 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
             <span className="popular-tab-icon">{TAB_META[tab].icon}</span>
             <span className="popular-tab-label">{tab}</span>
             {!loading && (
-              <span className="popular-tab-count">{tabCounts[tab].toLocaleString()}</span>
+              <span className="popular-tab-count">
+                {tabCounts[TAB_API[tab]].toLocaleString()}
+              </span>
             )}
           </button>
         ))}
@@ -128,7 +126,7 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
         </div>
         <div className="popular-tab-header-stat">
           <span className="stat-value" style={{ color: meta.color }}>
-            {loading ? '…' : tabCounts[activeTab].toLocaleString()}
+            {loading ? '…' : tabCounts[TAB_API[activeTab]].toLocaleString()}
           </span>
           <span className="stat-label">Variations</span>
         </div>
@@ -153,7 +151,7 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
             <div className="spinner" />
             <span>Loading openings database…</span>
           </div>
-        ) : filteredFamilies.length === 0 ? (
+        ) : families.length === 0 ? (
           <div className="opening-list-empty">
             <div className="opening-list-empty-icon">♟</div>
             <strong>No families found</strong>
@@ -161,36 +159,56 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
           </div>
         ) : (
           <div className="popular-families">
-            {filteredFamilies.map(family => {
-              const variations = grouped[family];
-              return (
-                <div key={family} className="popular-family">
-                  <button
-                    id={`family-${family.replace(/\s+/g, '-').toLowerCase()}`}
-                    className="popular-family-header"
-                    style={{ '--tab-color': meta.color } as React.CSSProperties}
-                    onClick={() => onFamilySelect(family, variations, meta.color)}
-                  >
-                    <div className="popular-family-letter" style={{ background: meta.color }}>
-                      {family.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="popular-family-info">
-                      <span className="popular-family-name">{family}</span>
-                      <span className="popular-family-hint">
-                        {variations[0]?.moves.slice(0, 4).join(' ')}
-                        {variations[0]?.moves.length > 4 ? ' …' : ''}
-                      </span>
-                    </div>
-                    <span className="popular-family-count">
-                      {variations.length} variation{variations.length !== 1 ? 's' : ''}
+            {families.map(summary => (
+              <div key={summary.name} className="popular-family">
+                <button
+                  id={`family-${summary.name.replace(/\s+/g, '-').toLowerCase()}`}
+                  className="popular-family-header"
+                  style={{ '--tab-color': meta.color } as React.CSSProperties}
+                  disabled={loadingVariations === summary.name}
+                  onClick={() => handleFamilyClick(summary, meta.color)}
+                >
+                  <div className="popular-family-letter" style={{ background: meta.color }}>
+                    {loadingVariations === summary.name ? '…' : summary.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="popular-family-info">
+                    <span className="popular-family-name">{summary.name}</span>
+                    <span className="popular-family-hint">
+                      {summary.previewMoves.join(' ')}
+                      {summary.previewMoves.length === 4 ? ' …' : ''}
                     </span>
-                    <span className="popular-family-chevron">
-                      ›
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
+                  </div>
+                  <span className="popular-family-count">
+                    {summary.count} variation{summary.count !== 1 ? 's' : ''}
+                  </span>
+                  <span className="popular-family-chevron">›</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="opening-list-pagination">
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={familyPage === 1}
+              onClick={() => setFamilyPage(p => p - 1)}
+            >
+              ← Previous
+            </button>
+            <span className="pagination-info">
+              Page {familyPage} of {totalPages}
+              <span className="pagination-total"> ({total} families)</span>
+            </span>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={familyPage === totalPages}
+              onClick={() => setFamilyPage(p => p + 1)}
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>
