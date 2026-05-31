@@ -10,6 +10,8 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .board-flip-btn {

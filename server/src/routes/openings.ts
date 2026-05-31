@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getAllOpenings, getOpeningsByFamilies } from '../data/openings';
+import { getAllOpenings, getOpeningsByFamilies, getFamilySummaries } from '../data/openings';
+import type { FirstMoveTab } from '../data/openings';
 import { Opening } from '../types';
 
 const router = Router();
@@ -76,13 +77,30 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // ── GET /api/openings/families ────────────────────────────────────────────────
-// Returns all distinct family names (sorted).
+// Paginated family summaries for the "Classify Openings" view.
+//
+// Query params:
+//   firstMove  – 'e4' | 'd4' | 'other'  (optional, filters by opening move)
+//   search     – substring match on family name
+//   page       – 1-based page number  (default: 1)
+//   pageSize   – families per page    (default: 20, max: 100)
+//
+// Response: FamilySummariesResponse
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/families', (_req: Request, res: Response) => {
   try {
-    const allOpenings = getAllOpenings();
-    const families = [...new Set(allOpenings.map(o => o.family))].sort();
-    res.json({ families });
+    const req = _req;
+    const firstMoveRaw = (req.query.firstMove as string || '').toLowerCase().trim();
+    const firstMove: FirstMoveTab | undefined =
+      firstMoveRaw === 'e4' || firstMoveRaw === 'd4' || firstMoveRaw === 'other'
+        ? firstMoveRaw
+        : undefined;
+    const search = (req.query.search as string || '').trim();
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || '20', 10)));
+
+    const result = getFamilySummaries({ firstMove, search, page, pageSize });
+    res.json(result);
   } catch (err) {
     console.error('[GET /api/openings/families]', err);
     res.status(500).json({ error: 'Failed to load families' });

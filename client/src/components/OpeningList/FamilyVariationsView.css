@@ -100,6 +100,8 @@
   text-align: left;
   transition: all var(--transition);
   font-family: var(--font-sans);
+  text-decoration: none;
+  color: inherit;
 }
 
 .fvv-card:hover {

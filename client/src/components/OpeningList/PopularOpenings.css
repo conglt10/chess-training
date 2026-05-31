@@ -152,6 +152,13 @@
   padding: 16px 32px 32px;
 }
 
+/* Pagination (re-uses .opening-list-pagination + .pagination-info from OpeningList.css) */
+.pagination-total {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
 /* Families list */
 .popular-families {
   display: flex;
