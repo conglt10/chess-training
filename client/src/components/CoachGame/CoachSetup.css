@@ -66,6 +66,60 @@
   margin: 0;
 }
 
+.coach-setup-section-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: -6px 0 0;
+  line-height: 1.45;
+}
+
+/* ── Strict mode ── */
+.coach-strict-row {
+  display: flex;
+  gap: 12px;
+}
+
+.coach-strict-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.coach-strict-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.coach-strict-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.coach-strict-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.coach-strict-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.coach-strict-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── Level grid ── */
 .coach-level-grid {
   display: grid;

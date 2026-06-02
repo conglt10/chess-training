@@ -9,12 +9,13 @@ const LEVEL_ORDER: CoachLevel[] = [
 ];
 
 interface CoachSetupProps {
-  onStart: (level: CoachLevel, color: 'white' | 'black') => void;
+  onStart: (level: CoachLevel, color: 'white' | 'black', strictMode: boolean) => void;
 }
 
 export default function CoachSetup({ onStart }: CoachSetupProps) {
   const [selectedLevel, setSelectedLevel] = useState<CoachLevel>('intermediate');
   const [selectedColor, setSelectedColor] = useState<'white' | 'black' | 'random'>('white');
+  const [strictMode, setStrictMode] = useState(false);
 
   const handleStart = () => {
     const color =
@@ -23,7 +24,7 @@ export default function CoachSetup({ onStart }: CoachSetupProps) {
           ? 'white'
           : 'black'
         : selectedColor;
-    onStart(selectedLevel, color);
+    onStart(selectedLevel, color, strictMode);
   };
 
   return (
@@ -82,6 +83,34 @@ export default function CoachSetup({ onStart }: CoachSetupProps) {
           </div>
         </section>
 
+        {/* Strict mode (CCA) */}
+        <section className="coach-setup-section">
+          <h2 className="coach-setup-section-title">Strict Mode (CCA)</h2>
+          <p className="coach-setup-section-hint">
+            Complete the Checks, Captures, and Attacks checklist before each of your moves.
+          </p>
+          <div className="coach-strict-row">
+            <button
+              type="button"
+              className={`coach-strict-btn ${!strictMode ? 'active' : ''}`}
+              onClick={() => setStrictMode(false)}
+            >
+              <span className="coach-strict-icon">♟</span>
+              <span className="coach-strict-label">Off</span>
+              <span className="coach-strict-desc">Move freely</span>
+            </button>
+            <button
+              type="button"
+              className={`coach-strict-btn ${strictMode ? 'active' : ''}`}
+              onClick={() => setStrictMode(true)}
+            >
+              <span className="coach-strict-icon">✓</span>
+              <span className="coach-strict-label">Strict</span>
+              <span className="coach-strict-desc">CCA required</span>
+            </button>
+          </div>
+        </section>
+
         {/* Summary + start */}
         <div className="coach-setup-summary">
           <span className="coach-setup-summary-text">
@@ -93,6 +122,12 @@ export default function CoachSetup({ onStart }: CoachSetupProps) {
             <strong>
               {COACH_LEVELS[selectedLevel].emoji} {COACH_LEVELS[selectedLevel].label}
             </strong>
+            {strictMode && (
+              <>
+                &nbsp;·&nbsp;
+                <strong>Strict (CCA)</strong>
+              </>
+            )}
           </span>
           <button className="btn btn-primary btn-lg coach-start-btn" onClick={handleStart}>
             Start Game →

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Chessboard } from 'react-chessboard';
 import type { Square, Piece } from 'react-chessboard/dist/chessboard/types';
 import { Chess } from 'chess.js';
@@ -19,6 +19,17 @@ function annotationColor(e: MouseEvent): string {
   return 'rgba(246, 192, 0, 0.85)';                          // gold (default)
 }
 
+export interface MoveSquareHighlight {
+  from: string;
+  to: string;
+  color?: string;
+}
+
+export const COACH_LAST_MOVE_COLOR = 'rgba(155, 199, 0, 0.45)';
+export const PLAYER_LAST_MOVE_COLOR = 'rgba(130, 170, 255, 0.45)';
+
+const DEFAULT_MOVE_HIGHLIGHT = 'rgba(155, 199, 0, 0.45)';
+
 interface ChessBoardProps {
   fen: string;
   theme: ThemeConfig;
@@ -26,6 +37,8 @@ interface ChessBoardProps {
   playerColor?: 'white' | 'black';
   onMove?: (from: string, to: string, promotion?: string) => boolean;
   boardWidth?: number;
+  /** Highlight from/to squares for one or more recent moves */
+  moveHighlights?: MoveSquareHighlight[];
 }
 
 const BOARD_COLORS: Record<BoardTheme, { light: string; dark: string; highlight: string }> = {
@@ -40,23 +53,28 @@ const BOARD_COLORS: Record<BoardTheme, { light: string; dark: string; highlight:
   mahogany: { light: '#e8b89a', dark: '#7b3726', highlight: 'rgba(255,255,0,0.4)' },
 };
 
+function pieceStyle(squareWidth: number, imageUrl: string): CSSProperties {
+  return {
+    width: squareWidth,
+    height: squareWidth,
+    backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
+    backgroundSize: '100%',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+  };
+}
+
 function makePieceRenderer(pieceTheme: ThemeConfig['pieces']) {
   return Object.fromEntries(
-    PIECE_CODES.map((piece) => [
-      piece,
-      ({ squareWidth }: { squareWidth: number }) => (
-        <div
-          style={{
-            width: squareWidth,
-            height: squareWidth,
-            backgroundImage: `url(${getPieceImageUrl(pieceTheme, piece)})`,
-            backgroundSize: '100%',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-          }}
-        />
-      ),
-    ])
+    PIECE_CODES.map((pieceCode) => {
+      const imageUrl = getPieceImageUrl(pieceTheme, pieceCode);
+      return [
+        pieceCode,
+        ({ squareWidth }: { squareWidth: number }) => (
+          <div style={pieceStyle(squareWidth, imageUrl)} />
+        ),
+      ];
+    }),
   ) as Record<string, React.FC<{ squareWidth: number }>>;
 }
 
@@ -67,9 +85,10 @@ export default function ChessBoard({
   playerColor = 'white',
   onMove,
   boardWidth = 480,
+  moveHighlights = [],
 }: ChessBoardProps) {
   const colors = BOARD_COLORS[theme.board];
-  const customPieces = makePieceRenderer(theme.pieces);
+  const customPieces = useMemo(() => makePieceRenderer(theme.pieces), [theme.pieces]);
 
   // ── Annotation state (right-click circles + arrows) ──────────────────────
   const rootRef = useRef<HTMLDivElement>(null);
@@ -223,6 +242,13 @@ export default function ChessBoard({
           };
     }
 
+    // Last-move highlights (from / to squares per move)
+    for (const hl of moveHighlights) {
+      const bg = hl.color ?? DEFAULT_MOVE_HIGHLIGHT;
+      styles[hl.from] = { background: bg };
+      styles[hl.to] = { background: bg };
+    }
+
     // Selected piece square — theme-aware highlight
     if (selectedSquare) {
       styles[selectedSquare] = { background: colors.highlight };
@@ -234,7 +260,7 @@ export default function ChessBoard({
     }
 
     return styles;
-  }, [legalTargets, selectedSquare, circles, colors.highlight]);
+  }, [legalTargets, selectedSquare, circles, colors.highlight, moveHighlights]);
 
   const onPieceDrop = useCallback(
     (sourceSquare: Square, targetSquare: Square, piece: Piece): boolean => {
@@ -257,6 +283,7 @@ export default function ChessBoard({
         style={{ width: boardWidth, height: boardWidth }}
       >
         <Chessboard
+          key={theme.pieces}
           id="main-board"
           position={fen}
           boardWidth={boardWidth}

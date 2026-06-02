@@ -13,6 +13,8 @@ export interface CoachMoveEntry {
   halfMoveIndex: number;
   san: string;
   color: 'w' | 'b';
+  from: string;
+  to: string;
   /** Only set for player moves */
   comment: MoveComment | null;
 }
@@ -186,6 +188,8 @@ export function useCoachGame({ level, playerColor }: UseCoachGameProps): UseCoac
           halfMoveIndex: halfMoveRef.current - 1,
           san: moveResult!.san,
           color: moveResult!.color,
+          from: moveResult!.from,
+          to: moveResult!.to,
           comment: null,
         }]);
 
@@ -246,6 +250,8 @@ export function useCoachGame({ level, playerColor }: UseCoachGameProps): UseCoac
       halfMoveIndex,
       san: result!.san,
       color: result!.color,
+      from: result!.from,
+      to: result!.to,
       comment: null,
     }]);
 
