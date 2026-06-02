@@ -1,6 +1,10 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import './CoachGame.css';
-import ChessBoard from '../Board/ChessBoard';
+import ChessBoard, {
+  COACH_LAST_MOVE_COLOR,
+  PLAYER_LAST_MOVE_COLOR,
+  type MoveSquareHighlight,
+} from '../Board/ChessBoard';
 import { useCoachGame } from '../../hooks/useCoachGame';
 import type { CoachMoveEntry } from '../../hooks/useCoachGame';
 import type { ThemeConfig } from '../../types';
@@ -29,6 +33,67 @@ const QUALITY_LABEL: Record<MoveQuality, string> = {
   mistake:   'Mistake ?',
   blunder:   'Blunder ??',
 };
+
+// ── CCA checklist (strict mode) ────────────────────────────────────────────────
+
+type CcaKey = 'checks' | 'captures' | 'attacks';
+
+const CCA_ITEMS: { key: CcaKey; label: string }[] = [
+  { key: 'checks', label: 'Checks' },
+  { key: 'captures', label: 'Captures' },
+  { key: 'attacks', label: 'Attacks' },
+];
+
+type CcaState = Record<CcaKey, boolean>;
+
+const EMPTY_CCA: CcaState = { checks: false, captures: false, attacks: false };
+
+function isCcaComplete(cca: CcaState): boolean {
+  return cca.checks && cca.captures && cca.attacks;
+}
+
+function CcaChecklist({
+  cca,
+  onToggle,
+  disabled,
+}: {
+  cca: CcaState;
+  onToggle: (key: CcaKey) => void;
+  disabled: boolean;
+}) {
+  const complete = isCcaComplete(cca);
+
+  return (
+    <div className={`coach-cca-card${complete ? ' complete' : ''}`}>
+      <div className="coach-cca-header">
+        <span className="coach-cca-title">CCA checklist</span>
+        <span className="coach-cca-badge">Strict</span>
+      </div>
+      <p className="coach-cca-hint">
+        Tick each item before moving. Look for checks, captures, and attacks against you.
+      </p>
+      <ul className="coach-cca-list">
+        {CCA_ITEMS.map(({ key, label }) => (
+          <li key={key}>
+            <label className={`coach-cca-item${cca[key] ? ' checked' : ''}`}>
+              <input
+                type="checkbox"
+                checked={cca[key]}
+                disabled={disabled}
+                onChange={() => onToggle(key)}
+              />
+              <span className="coach-cca-check" aria-hidden />
+              <span className="coach-cca-label">{label}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {!complete && !disabled && (
+        <p className="coach-cca-warning">Complete all items to unlock the board.</p>
+      )}
+    </div>
+  );
+}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -135,13 +200,15 @@ function MoveList({ history, isThinking, activeHalfMove, onJumpTo }: {
 interface CoachGameProps {
   level: CoachLevel;
   playerColor: 'white' | 'black';
+  strictMode: boolean;
   theme: ThemeConfig;
   onNewGame: () => void;
 }
 
-export default function CoachGame({ level, playerColor, theme, onNewGame }: CoachGameProps) {
+export default function CoachGame({ level, playerColor, strictMode, theme, onNewGame }: CoachGameProps) {
   const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const cfg = COACH_LEVELS[level];
+  const [cca, setCca] = useState<CcaState>(EMPTY_CCA);
+   const cfg = COACH_LEVELS[level];
   const [viewIndex, setViewIndex] = useState<number | null>(null);
 
   // ── Dynamic board size ───────────────────────────────────────────────────
@@ -216,11 +283,47 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
   }, [goPrev, goNext, goFirst, goLast]);
 
   const coachColor: 'w' | 'b' = playerColor === 'white' ? 'b' : 'w';
+  const playerColorChar: 'w' | 'b' = playerColor === 'white' ? 'w' : 'b';
+
+  const moveHighlights = useMemo((): MoveSquareHighlight[] => {
+    const findLast = (color: 'w' | 'b'): MoveSquareHighlight | null => {
+      for (let i = moveHistory.length - 1; i >= 0; i--) {
+        const entry = moveHistory[i];
+        if (entry.halfMoveIndex >= effectiveIndex) continue;
+        if (entry.color !== color) continue;
+        return { from: entry.from, to: entry.to };
+      }
+      return null;
+    };
+
+    const highlights: MoveSquareHighlight[] = [];
+    const coach = findLast(coachColor);
+    const player = findLast(playerColorChar);
+    if (coach) highlights.push({ ...coach, color: COACH_LAST_MOVE_COLOR });
+    if (player) highlights.push({ ...player, color: PLAYER_LAST_MOVE_COLOR });
+    return highlights;
+  }, [moveHistory, effectiveIndex, coachColor, playerColorChar]);
+
   const isPlayerTurn = !isReviewing && engineReady && turn !== coachColor && gameStatus === 'playing';
+  const ccaComplete = isCcaComplete(cca);
+  const canMovePieces = isPlayerTurn && (!strictMode || ccaComplete);
+  const showCcaChecklist = strictMode && gameStatus === 'playing' && !isReviewing;
+
+  const resetCca = useCallback(() => setCca(EMPTY_CCA), []);
+
+  useEffect(() => {
+    if (!isPlayerTurn) resetCca();
+  }, [isPlayerTurn, resetCca]);
+
+  const toggleCca = useCallback((key: CcaKey) => {
+    setCca((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const handleMove = (from: string, to: string, promotion?: string): boolean => {
-    if (!isPlayerTurn) return false;
-    return makePlayerMove(from, to, promotion);
+    if (!canMovePieces) return false;
+    const ok = makePlayerMove(from, to, promotion);
+    if (ok) resetCca();
+    return ok;
   };
 
   const handleResign = () => {
@@ -234,6 +337,7 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
 
   const handleNewGame = () => {
     reset();
+    resetCca();
     setViewIndex(null);
     onNewGame();
   };
@@ -251,8 +355,14 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
       statusLabel = `${cfg.emoji} Coach is thinking…`;
       statusClass = 'thinking';
     } else if (isPlayerTurn) {
-      statusLabel = `Your turn (${playerColor === 'white' ? '⬜ White' : '⬛ Black'})`;
-      statusClass = 'your-turn';
+      const colorLabel = playerColor === 'white' ? '⬜ White' : '⬛ Black';
+      if (strictMode && !ccaComplete) {
+        statusLabel = `Complete CCA checklist (${colorLabel})`;
+        statusClass = 'thinking';
+      } else {
+        statusLabel = `Your turn (${colorLabel})`;
+        statusClass = 'your-turn';
+      }
     } else {
       statusLabel = `${cfg.emoji} Coach is moving…`;
       statusClass = 'thinking';
@@ -277,6 +387,9 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
         <div className={`coach-status-dot ${statusClass}`} />
         <span className="coach-status-text">{statusLabel}</span>
         <div className="coach-status-spacer" />
+        {strictMode && gameStatus === 'playing' && (
+          <span className="coach-strict-mode-badge">CCA Strict</span>
+        )}
         {isReviewing && <span className="coach-review-badge">📽 Reviewing</span>}
         <span className="coach-status-badge">
           {isReviewing
@@ -292,10 +405,11 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
             <ChessBoard
               fen={displayFen}
               theme={theme}
-              interactive={isPlayerTurn}
+              interactive={canMovePieces}
               playerColor={playerColor}
               onMove={handleMove}
               boardWidth={boardSize}
+              moveHighlights={moveHighlights}
             />
             {!isReviewing && gameStatus !== 'playing' && (
               <div className="coach-game-over-overlay">
@@ -339,6 +453,14 @@ export default function CoachGame({ level, playerColor, theme, onNewGame }: Coac
             </div>
             <div className={`coach-turn-indicator ${isCoachThinking ? 'thinking' : turn === coachColor && gameStatus === 'playing' ? 'active' : ''}`} />
           </div>
+
+          {showCcaChecklist && (
+            <CcaChecklist
+              cca={cca}
+              onToggle={toggleCca}
+              disabled={!isPlayerTurn}
+            />
+          )}
 
           {/* Move history + comments */}
           <MoveList history={moveHistory} isThinking={isCoachThinking} activeHalfMove={activeHalfMove} onJumpTo={jumpTo} />

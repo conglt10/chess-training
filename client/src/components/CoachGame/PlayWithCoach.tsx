@@ -14,10 +14,16 @@ export default function PlayWithCoach({ theme }: PlayWithCoachProps) {
   const [screen, setScreen] = useState<CoachScreen>('setup');
   const [level, setLevel] = useState<CoachLevel>('intermediate');
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
+  const [strictMode, setStrictMode] = useState(false);
 
-  const handleStart = (chosenLevel: CoachLevel, chosenColor: 'white' | 'black') => {
+  const handleStart = (
+    chosenLevel: CoachLevel,
+    chosenColor: 'white' | 'black',
+    chosenStrictMode: boolean,
+  ) => {
     setLevel(chosenLevel);
     setPlayerColor(chosenColor);
+    setStrictMode(chosenStrictMode);
     setScreen('game');
   };
 
@@ -29,6 +35,7 @@ export default function PlayWithCoach({ theme }: PlayWithCoachProps) {
     <CoachGame
       level={level}
       playerColor={playerColor}
+      strictMode={strictMode}
       theme={theme}
       onNewGame={() => setScreen('setup')}
     />
