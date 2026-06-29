@@ -26,6 +26,9 @@ export interface MasterGame {
   date: string;
   year: number | null;
   result: GameResult;
+  eco: string;             // ECO code (e.g. "B90"), '' if absent
+  opening: string;         // opening name (header, or derived from ECO), '' if unknown
+  plies: number;           // half-move count (for move-count sort/display)
   collectionKey: string;   // which collection this game came from
   collection: string;      // human-readable collection label
   moves: string[];     // SAN, full game

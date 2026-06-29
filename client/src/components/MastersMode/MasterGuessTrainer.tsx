@@ -4,6 +4,7 @@ import { MasterGame, ThemeConfig } from '../../types';
 import { fetchMasterGame } from '../../api/masterGames';
 import { useMasterDrill } from '../../hooks/useMasterDrill';
 import { useBoardSize } from '../../hooks/useBoardSize';
+import { downloadGamePgn } from '../../utils/pgnExport';
 import ChessBoard from '../Board/ChessBoard';
 import MoveTable from '../MoveTable/MoveTable';
 import ClassificationIcon from '../GameReview/ClassificationIcon';
@@ -204,6 +205,7 @@ function Drill({ theme, game, trainColor, startPly, onChangeColor, onBack, toast
                 </div>
                 <div className="completion-btns">
                   <button className="btn btn-primary" onClick={drill.reset}>🔄 Replay</button>
+                  <button className="btn btn-ghost" onClick={() => downloadGamePgn(game)}>⬇ Download PGN</button>
                   <button className="btn btn-ghost" onClick={onBack}>📜 Back to explorer</button>
                 </div>
               </div>
@@ -276,6 +278,7 @@ function Drill({ theme, game, trainColor, startPly, onChangeColor, onBack, toast
                 <button className="btn btn-ghost btn-sm" onClick={drill.revealAndAdvance}>👁 Reveal & skip</button>
               )}
               <button className="btn btn-ghost btn-sm" onClick={drill.reset}>↺ Restart</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => downloadGamePgn(game)}>⬇ Download PGN</button>
               <button className="btn btn-ghost btn-sm" onClick={onBack}>📜 Explorer</button>
             </div>
           </div>

@@ -11,10 +11,16 @@ export async function fetchCollections(): Promise<Collection[]> {
 
 export async function fetchCollectionGames(params: {
   key: string;
+  search?: string;
+  sortBy?: 'date' | 'moves';
+  sortDir?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }): Promise<CollectionGamesResponse> {
   const q = new URLSearchParams({ key: params.key });
+  if (params.search) q.set('search', params.search);
+  if (params.sortBy) q.set('sortBy', params.sortBy);
+  if (params.sortDir) q.set('sortDir', params.sortDir);
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
   const res = await fetch(`${BASE}/master-games/by-collection?${q.toString()}`);
