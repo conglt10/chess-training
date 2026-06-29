@@ -124,12 +124,48 @@
 .masters-collection-detail-head { display: flex; align-items: center; gap: 12px; }
 .masters-collection-detail-head h3 { margin: 0; flex: 1; }
 
+/* Search + sort toolbar */
+.masters-games-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.masters-search-input {
+  flex: 1;
+  min-width: 220px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+.masters-sort { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.85rem; }
+.masters-sort-select {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
 /* Single-column game list */
 .masters-game-list-1col {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+.masters-game-opening {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.masters-game-moves { color: var(--text-muted); font-size: 0.8rem; }
 
 /* Piece-colour chips on player names */
 .masters-game-sides {

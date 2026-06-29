@@ -24,7 +24,11 @@ router.get('/by-collection', (req: Request, res: Response) => {
     if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
     const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || '20', 10)));
-    res.json(getGamesByCollection(key, page, pageSize));
+    const search = (req.query.search as string || '').trim();
+    const sortByRaw = (req.query.sortBy as string || 'date');
+    const sortBy = sortByRaw === 'moves' ? 'moves' : 'date';
+    const sortDir = (req.query.sortDir as string) === 'asc' ? 'asc' : 'desc';
+    res.json(getGamesByCollection(key, { search, sortBy, sortDir, page, pageSize }));
   } catch (err) {
     console.error('[GET /api/master-games/by-collection]', err);
     res.status(500).json({ error: 'Failed to load collection games' });

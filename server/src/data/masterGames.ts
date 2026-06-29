@@ -10,6 +10,7 @@ import {
   GameResult,
   Collection,
 } from '../types';
+import { getAllOpenings } from './openings';
 
 // Local PGN corpus — populated by `npm run download-master-games`
 // (Lichess Elite) and `npm run download-legend-games` (per-champion files).
@@ -104,6 +105,22 @@ function rawToSummary(raw: RawGame): MasterGameSummary {
   return summary;
 }
 
+// ECO code -> broad opening family (e.g. "B90" -> "Sicilian Defense"), built
+// once from the openings dataset so legend games that carry only an ECO code
+// are still searchable/displayable by opening name.
+let ecoToOpening: Map<string, string> | null = null;
+function getEcoToOpening(): Map<string, string> {
+  if (ecoToOpening) return ecoToOpening;
+  const map = new Map<string, string>();
+  try {
+    for (const o of getAllOpenings()) {
+      if (o.eco && !map.has(o.eco)) map.set(o.eco, o.family);
+    }
+  } catch { /* openings not available — leave map empty */ }
+  ecoToOpening = map;
+  return map;
+}
+
 // ── Cheap metadata load (startup) ────────────────────────────────────────────
 
 function ensureMetadata(): void {
@@ -125,6 +142,7 @@ function ensureMetadata(): void {
     .sort((a, b) => (a === 'games.pgn' ? -1 : b === 'games.pgn' ? 1 : a.localeCompare(b)));
 
   const labels = new Map<string, string>();
+  const ecoMap = getEcoToOpening();
 
   for (const file of files) {
     const { key, label } = collectionFromFile(file);
@@ -134,9 +152,11 @@ function ensureMetadata(): void {
     for (const pgn of splitGames(content)) {
       const result = (header(pgn, 'Result') || '*') as GameResult;
       if (!VALID_RESULTS.has(result)) continue;
-      if (countPlies(pgn) < MIN_PLIES) continue;
+      const plies = countPlies(pgn);
+      if (plies < MIN_PLIES) continue;
 
       const date = header(pgn, 'Date');
+      const eco = header(pgn, 'ECO');
       let id = crypto.createHash('sha1').update(pgn).digest('hex').slice(0, 12);
       let n = 1;
       while (rawById!.has(id)) id = `${id}-${n++}`;
@@ -151,6 +171,9 @@ function ensureMetadata(): void {
         date,
         year: toNum(date.slice(0, 4)),
         result,
+        eco,
+        opening: header(pgn, 'Opening') || ecoMap.get(eco) || '',
+        plies,
         collectionKey: key,
         collection: label,
         pgn,
@@ -279,12 +302,46 @@ export interface CollectionGamesResult {
   pageSize: number;
 }
 
-export function getGamesByCollection(key: string, page: number, pageSize: number): CollectionGamesResult {
+export type GamesSortBy = 'date' | 'moves';
+export type SortDir = 'asc' | 'desc';
+
+export interface CollectionGamesOpts {
+  search?: string;             // matches opponent / opening / ECO / year / event
+  sortBy?: GamesSortBy;        // default 'date'
+  sortDir?: SortDir;           // default 'desc'
+  page: number;
+  pageSize: number;
+}
+
+function matchesSearch(g: RawGame, q: string): boolean {
+  if (!q) return true;
+  const hay = `${g.white} ${g.black} ${g.event} ${g.opening} ${g.eco} ${g.year ?? ''}`.toLowerCase();
+  // Every whitespace-separated term must appear (AND semantics).
+  return q.split(/\s+/).every(term => hay.includes(term));
+}
+
+export function getGamesByCollection(key: string, opts: CollectionGamesOpts): CollectionGamesResult {
   ensureMetadata();
-  const all = rawByCollection!.get(key) ?? [];
-  const total = all.length;
+  const { page, pageSize } = opts;
+  const sortBy = opts.sortBy ?? 'date';
+  const sortDir = opts.sortDir ?? 'desc';
+  const q = (opts.search ?? '').toLowerCase().trim();
+
+  let list = rawByCollection!.get(key) ?? [];
+  if (q) list = list.filter(g => matchesSearch(g, q));
+
+  const dir = sortDir === 'asc' ? 1 : -1;
+  const sorted = [...list].sort((a, b) => {
+    if (sortBy === 'moves') return dir * (a.plies - b.plies);
+    // 'date' — compare year, then full date string as a tiebreak
+    const ay = a.year ?? 0, by = b.year ?? 0;
+    if (ay !== by) return dir * (ay - by);
+    return dir * a.date.localeCompare(b.date);
+  });
+
+  const total = sorted.length;
   const start = (page - 1) * pageSize;
-  const games = all.slice(start, start + pageSize).map(rawToSummary);
+  const games = sorted.slice(start, start + pageSize).map(rawToSummary);
   return { games, total, page, pageSize };
 }
 

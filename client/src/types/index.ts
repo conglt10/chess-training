@@ -62,6 +62,9 @@ export interface MasterGame {
   date: string;
   year: number | null;
   result: GameResult;
+  eco: string;
+  opening: string;
+  plies: number;
   collectionKey: string;
   collection: string;
   moves: string[];
