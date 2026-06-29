@@ -5,6 +5,8 @@ import TheoryView from './components/TheoryView/TheoryView';
 import ExerciseView from './components/ExerciseView/ExerciseView';
 import VisionTraining from './components/VisionTraining/VisionTraining';
 import PlayWithCoach from './components/CoachGame/PlayWithCoach';
+import GameReview from './components/GameReview/GameReview';
+import MastersMode from './components/MastersMode/MastersMode';
 import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
 import { AppView, Opening } from './types';
@@ -109,6 +111,12 @@ export default function App() {
         )}
         {view === 'coach' && (
           <PlayWithCoach theme={theme} />
+        )}
+        {view === 'review' && (
+          <GameReview theme={theme} />
+        )}
+        {view === 'masters' && (
+          <MastersMode theme={theme} />
         )}
       </main>
 

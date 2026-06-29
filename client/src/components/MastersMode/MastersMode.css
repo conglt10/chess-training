@@ -1,0 +1,418 @@
+.masters-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  flex: 1;
+}
+
+/* ── Intro + opening quick-jump ─────────────────────────────────────────── */
+.masters-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.masters-intro-text h2 {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+}
+.masters-intro-text p {
+  margin: 0;
+  color: var(--text-secondary);
+  max-width: 560px;
+}
+.masters-jump {
+  position: relative;
+  min-width: 320px;
+  flex: 1;
+  max-width: 420px;
+}
+.masters-jump-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.masters-jump-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.masters-jump-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.masters-jump-row:hover { background: var(--bg-hover); }
+.masters-jump-name { font-size: 0.9rem; }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.masters-tabs { display: flex; gap: 8px; }
+.masters-tab {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 600;
+}
+.masters-tab.active { border-color: var(--accent); background: var(--accent-dim); color: var(--text-primary); }
+
+/* ── Legend collection cards ────────────────────────────────────────────── */
+.masters-collections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.masters-collection-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 14px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  text-align: center;
+  transition: var(--transition);
+}
+.masters-collection-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+.masters-collection-name { font-weight: 700; font-size: 1.05rem; }
+.masters-collection-count { color: var(--text-secondary); font-size: 0.82rem; }
+
+/* Initials avatar */
+.masters-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+.masters-avatar-img {
+  object-fit: cover;
+  object-position: top center;
+  background: var(--bg-elevated);
+}
+
+.masters-collection-detail { display: flex; flex-direction: column; gap: 12px; }
+.masters-collection-detail-head { display: flex; align-items: center; gap: 12px; }
+.masters-collection-detail-head h3 { margin: 0; flex: 1; }
+
+/* Single-column game list */
+.masters-game-list-1col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Piece-colour chips on player names */
+.masters-game-sides {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+.masters-side { display: inline-flex; align-items: center; gap: 6px; }
+.masters-elo { color: var(--text-secondary); font-weight: 400; }
+.masters-vs { color: var(--text-muted); font-size: 0.82rem; }
+.pc {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+.pc-w { background: #f4f4f4; }
+.pc-b { background: #2a2a2a; }
+
+/* Pager */
+.masters-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.masters-pager-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: var(--transition);
+}
+.masters-pager-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-hover); }
+.masters-pager-btn:disabled { opacity: 0.4; cursor: default; }
+.masters-pager-info { color: var(--text-secondary); font-size: 0.85rem; padding: 0 6px; }
+
+/* ── Layout: board + sidebar (coach-style big centred board) ─────────────── */
+.masters-explorer {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) 380px;
+  gap: 0;
+  height: calc(100vh - 250px);
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.masters-board-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  min-height: 0;
+}
+.masters-board-wrap {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.masters-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  min-height: 0;
+}
+.masters-line-controls { display: flex; gap: 8px; }
+.masters-line-panel .move-table-wrap { max-height: 220px; }
+
+/* ── Panels ─────────────────────────────────────────────────────────────── */
+.masters-panel { padding: 14px; border-radius: var(--radius-lg); }
+.masters-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.masters-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 8px 2px;
+}
+
+/* ── Move stats list ────────────────────────────────────────────────────── */
+.masters-move-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.masters-move-row {
+  display: grid;
+  grid-template-columns: 52px 48px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.masters-move-row:hover { background: var(--bg-hover); border-color: var(--accent); }
+.masters-move-san { font-family: var(--font-mono); font-weight: 700; }
+.masters-move-count { color: var(--text-secondary); font-size: 0.85rem; }
+.masters-wdl {
+  display: flex;
+  height: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 18px;
+  color: #111;
+  text-align: center;
+}
+.masters-wdl span { overflow: hidden; white-space: nowrap; }
+.wdl-w { background: #f0f0f0; }
+.wdl-d { background: #9b9b9b; color: #fff; }
+.wdl-b { background: #3a3a3a; color: #fff; }
+
+/* ── Games list ─────────────────────────────────────────────────────────── */
+.masters-game-list { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
+.masters-game-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+}
+.masters-game-row:hover { background: var(--bg-hover); border-color: var(--accent); }
+.masters-game-players { font-size: 0.88rem; }
+.masters-game-event { color: var(--text-secondary); font-size: 0.8rem; }
+.masters-game-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.masters-game-year { color: var(--text-muted); }
+.masters-result { font-family: var(--font-mono); font-weight: 700; }
+.result-w { color: var(--text-primary); }
+.result-b { color: var(--text-secondary); }
+.result-d { color: var(--text-muted); }
+
+/* ── Trainer (full-height, big centred board like coach mode) ───────────── */
+.masters-trainer { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.masters-trainer-top { padding: 12px 16px; border-radius: 0; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.masters-trainer-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  min-height: 0;
+  overflow: hidden;
+}
+.masters-trainer .masters-board-area { background: var(--bg-surface); }
+.masters-trainer .masters-sidebar { border-left: 1px solid var(--border); }
+.masters-game-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.masters-loading { padding: 40px; text-align: center; color: var(--text-secondary); }
+
+.masters-status { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.masters-status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
+.masters-status-dot.your-turn { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.masters-status-dot.auto-turn { background: var(--warning); }
+.masters-status-dot.complete { background: var(--accent); }
+.masters-stats-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.masters-hint {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  font-size: 0.9rem;
+}
+.masters-hint strong { font-family: var(--font-mono); }
+.masters-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.masters-move-table { max-height: 420px; overflow: hidden; }
+
+/* ── Color picker (self-contained copy of the exercise styling) ─────────── */
+.color-picker-btns { display: flex; gap: 8px; }
+.color-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.color-btn.active { border-color: var(--accent); background: var(--accent-dim); }
+
+/* ── Completion overlay (self-contained copy) ───────────────────────────── */
+.completion-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: var(--radius-lg);
+  color: #fff;
+  z-index: 10;
+}
+.completion-icon { font-size: 3rem; }
+.completion-title { font-size: 1.5rem; font-weight: 700; }
+.completion-sub { color: rgba(255, 255, 255, 0.85); max-width: 360px; }
+.completion-btns { display: flex; gap: 10px; margin-top: 8px; }
+
+/* ── Review mode (coach comment + best move after each move) ── */
+.masters-review-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.masters-review-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+.masters-review-toggle-text { font-weight: 700; color: var(--text-primary); }
+.masters-review-sub { margin: 6px 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+
+.masters-review-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+.masters-review-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: masters-review-spin 0.8s linear infinite;
+}
+@keyframes masters-review-spin { to { transform: rotate(360deg); } }
+
+.masters-review-card {
+  margin-top: 10px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.masters-review-head { display: flex; align-items: center; gap: 8px; }
+.masters-review-move { font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+.masters-review-headline { font-weight: 700; margin-left: auto; }
+.masters-review-detail { margin: 0; color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; }
+.masters-review-best { margin: 0; font-size: 0.86rem; color: var(--text-primary); }
+.masters-review-best strong { color: #26c2a3; font-family: var(--font-mono); }
+.masters-review-tip { margin: 0; font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
+.masters-review-empty { margin-top: 10px; color: var(--text-muted); font-size: 0.85rem; }

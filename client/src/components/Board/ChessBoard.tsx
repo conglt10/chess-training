@@ -39,6 +39,8 @@ interface ChessBoardProps {
   boardWidth?: number;
   /** Highlight from/to squares for one or more recent moves */
   moveHighlights?: MoveSquareHighlight[];
+  /** Engine/coach arrows drawn on top of the board (e.g. best-move suggestion) */
+  arrows?: ArrowAnnotation[];
 }
 
 const BOARD_COLORS: Record<BoardTheme, { light: string; dark: string; highlight: string }> = {
@@ -86,6 +88,7 @@ export default function ChessBoard({
   onMove,
   boardWidth = 480,
   moveHighlights = [],
+  arrows = [],
 }: ChessBoardProps) {
   const colors = BOARD_COLORS[theme.board];
   const customPieces = useMemo(() => makePieceRenderer(theme.pieces), [theme.pieces]);
@@ -295,7 +298,7 @@ export default function ChessBoard({
           customPieces={customPieces}
           animationDuration={200}
           areArrowsAllowed={false}
-          customArrows={drawnArrows}
+          customArrows={[...arrows, ...drawnArrows]}
           customSquareStyles={combinedSquareStyles}
           onSquareClick={onSquareClick}
         />
