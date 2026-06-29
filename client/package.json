@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "download-player-avatars": "node scripts/download-player-avatars.mjs"
   },
   "dependencies": {
     "chess.js": "^1.3.0",

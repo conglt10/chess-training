@@ -214,6 +214,50 @@ export function getFamilySummaries(opts: {
   return { families, total, page, pageSize, tabCounts };
 }
 
+// ── Opening identification (for Game Review) ───────────────────────────────────
+
+/** Strip check/mate/annotation glyphs so SAN compares cleanly across sources. */
+function normalizeSan(san: string): string {
+  return san.replace(/[+#!?]/g, '').replace(/0/g, 'O'); // 0-0 → O-O
+}
+
+// Map of "normalized SAN move sequence" → opening, built once and cached.
+let openingByLine: Map<string, Opening> | null = null;
+let maxOpeningPlies = 0;
+
+function buildOpeningLineIndex(): Map<string, Opening> {
+  const map = new Map<string, Opening>();
+  let maxLen = 0;
+  for (const o of getAllOpenings()) {
+    const key = o.moves.map(normalizeSan).join(' ');
+    if (key.length === 0) continue;
+    // Prefer the longer / more specific entry if two share the same line.
+    map.set(key, o);
+    if (o.moves.length > maxLen) maxLen = o.moves.length;
+  }
+  maxOpeningPlies = maxLen;
+  return map;
+}
+
+/**
+ * Identify the opening for a game given its SAN move list. Returns the opening
+ * whose full move sequence is the LONGEST prefix of the supplied moves.
+ */
+export function identifyOpening(sanMoves: string[]): Opening | null {
+  if (!openingByLine) openingByLine = buildOpeningLineIndex();
+
+  const norm = sanMoves.map(normalizeSan);
+  const limit = Math.min(norm.length, maxOpeningPlies);
+
+  // Try the longest possible prefix first, shrinking until we find a match.
+  for (let len = limit; len >= 1; len--) {
+    const key = norm.slice(0, len).join(' ');
+    const found = openingByLine.get(key);
+    if (found) return found;
+  }
+  return null;
+}
+
 /**
  * Backwards-compatible alias used by the server entry point.
  */

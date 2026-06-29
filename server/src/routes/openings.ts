@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getAllOpenings, getOpeningsByFamilies, getFamilySummaries } from '../data/openings';
+import { getAllOpenings, getOpeningsByFamilies, getFamilySummaries, identifyOpening } from '../data/openings';
 import type { FirstMoveTab } from '../data/openings';
 import { Opening } from '../types';
 
@@ -104,6 +104,40 @@ router.get('/families', (_req: Request, res: Response) => {
   } catch (err) {
     console.error('[GET /api/openings/families]', err);
     res.status(500).json({ error: 'Failed to load families' });
+  }
+});
+
+// ── GET /api/openings/identify?moves=e4,e5,Nf3,... ────────────────────────────
+// Identify the opening from a SAN move list (longest matching prefix).
+// Response: { eco, name, family, ply } | { eco: null }
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/identify', (req: Request, res: Response) => {
+  try {
+    const movesParam = (req.query.moves as string || '').trim();
+    const sanMoves = movesParam
+      .split(',')
+      .map(m => m.trim())
+      .filter(m => m.length > 0);
+
+    if (sanMoves.length === 0) {
+      res.json({ eco: null, name: null, family: null, ply: 0 });
+      return;
+    }
+
+    const opening = identifyOpening(sanMoves);
+    if (!opening) {
+      res.json({ eco: null, name: null, family: null, ply: 0 });
+      return;
+    }
+    res.json({
+      eco: opening.eco,
+      name: opening.name,
+      family: opening.family,
+      ply: opening.moves.length,
+    });
+  } catch (err) {
+    console.error('[GET /api/openings/identify]', err);
+    res.status(500).json({ error: 'Failed to identify opening' });
   }
 });
 

@@ -4,7 +4,10 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import openingsRouter from './routes/openings';
 import coachRouter from './routes/coach';
+import masterGamesRouter from './routes/masterGames';
+import importGameRouter from './routes/importGame';
 import { loadAllOpenings } from './data/openings';
+import { warmMasterGames, prewarmExplorerIndex } from './data/masterGames';
 import { getPool } from './utils/stockfishPool';
 import { coachWsHandler } from './ws/coachWsHandler';
 
@@ -16,6 +19,8 @@ app.use(express.json());
 
 app.use('/api/openings', openingsRouter);
 app.use('/api/coach', coachRouter);
+app.use('/api/master-games', masterGamesRouter);
+app.use('/api/import-game', importGameRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -50,6 +55,14 @@ server.listen(PORT, async () => {
     await loadAllOpenings();
   } catch (err) {
     console.error('Failed to pre-load openings:', err);
+  }
+  try {
+    warmMasterGames();
+    // Build the explorer index in the background (chunked, non-blocking) so it's
+    // ready by the time anyone opens the explorer — without freezing startup.
+    prewarmExplorerIndex().catch(err => console.error('Explorer index build failed:', err));
+  } catch (err) {
+    console.error('Failed to pre-load master games:', err);
   }
   // Pre-warm pool: all 3 engines start their UCI handshake now
   getPool().warmUp()

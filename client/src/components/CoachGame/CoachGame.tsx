@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { Chess } from 'chess.js';
 import './CoachGame.css';
 import ChessBoard, {
   COACH_LAST_MOVE_COLOR,
@@ -93,6 +94,30 @@ function CcaChecklist({
       )}
     </div>
   );
+}
+
+// ── PGN builder (for handing the finished game to Game Review) ──────────────────
+
+function buildCoachPgn(
+  moveHistory: CoachMoveEntry[],
+  playerColor: 'white' | 'black',
+  levelLabel: string,
+  winner: 'white' | 'black' | 'draw' | null,
+): string {
+  const chess = new Chess();
+  for (const entry of moveHistory) {
+    try { chess.move(entry.san); } catch { break; }
+  }
+  const you = 'You';
+  const coach = `Coach (${levelLabel})`;
+  const result = winner === 'white' ? '1-0' : winner === 'black' ? '0-1' : winner === 'draw' ? '1/2-1/2' : '*';
+  chess.header(
+    'Event', 'Play with Coach',
+    'White', playerColor === 'white' ? you : coach,
+    'Black', playerColor === 'white' ? coach : you,
+    'Result', result,
+  );
+  return chess.pgn();
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -203,9 +228,11 @@ interface CoachGameProps {
   strictMode: boolean;
   theme: ThemeConfig;
   onNewGame: () => void;
+  /** Hand the finished game (as PGN) to the Game Review screen. */
+  onReview?: (pgn: string) => void;
 }
 
-export default function CoachGame({ level, playerColor, strictMode, theme, onNewGame }: CoachGameProps) {
+export default function CoachGame({ level, playerColor, strictMode, theme, onNewGame, onReview }: CoachGameProps) {
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [cca, setCca] = useState<CcaState>(EMPTY_CCA);
    const cfg = COACH_LEVELS[level];
@@ -342,6 +369,12 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
     onNewGame();
   };
 
+  const canReview = !!onReview && gameStatus !== 'playing' && moveHistory.length > 0;
+  const handleReview = () => {
+    if (!canReview) return;
+    onReview!(buildCoachPgn(moveHistory, playerColor, cfg.label, winner));
+  };
+
   // ── Status label ──────────────────────────────────────────────────────────
 
   let statusLabel = '';
@@ -422,7 +455,12 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
                   </div>
                   <div className="coach-game-over-title">{statusLabel}</div>
                   <div className="coach-game-over-actions">
-                    <button className="btn btn-primary" onClick={handleNewGame}>
+                    {canReview && (
+                      <button className="btn btn-primary" onClick={handleReview}>
+                        📊 Review Game
+                      </button>
+                    )}
+                    <button className={`btn ${canReview ? 'btn-ghost' : 'btn-primary'}`} onClick={handleNewGame}>
                       🔄 New Game
                     </button>
                     <button className="btn btn-ghost" onClick={onNewGame}>
@@ -486,8 +524,13 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
                 )}
               </>
             )}
+            {canReview && (
+              <button className="btn btn-primary btn-sm coach-review-btn" onClick={handleReview}>
+                📊 Review Game
+              </button>
+            )}
             {gameStatus !== 'playing' && (
-              <button className="btn btn-primary" onClick={handleNewGame}>
+              <button className={`btn btn-sm ${canReview ? 'btn-ghost' : 'btn-primary'}`} onClick={handleNewGame}>
                 🔄 New Game
               </button>
             )}

@@ -20,7 +20,7 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
         </div>
       </a>
 
-      {selectedOpening && view !== 'list' && view !== 'vision' && view !== 'coach' && (
+      {selectedOpening && view !== 'list' && view !== 'vision' && view !== 'coach' && view !== 'masters' && view !== 'review' && (
         <div className="header-opening-info">
           <span className="badge badge-gold">{selectedOpening.eco}</span>
           <span className="header-opening-name">{selectedOpening.name}</span>
@@ -30,10 +30,16 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
       {/* Navigation tabs */}
       <nav className="header-nav">
         <button
-          className={`header-nav-btn ${view !== 'vision' && view !== 'coach' ? 'active' : ''}`}
+          className={`header-nav-btn ${view !== 'vision' && view !== 'coach' && view !== 'masters' && view !== 'review' ? 'active' : ''}`}
           onClick={() => onViewChange('list')}
         >
           📖 Repertoire
+        </button>
+        <button
+          className={`header-nav-btn ${view === 'masters' ? 'active' : ''}`}
+          onClick={() => onViewChange('masters')}
+        >
+          ♚ Master Games
         </button>
         <button
           className={`header-nav-btn ${view === 'vision' ? 'active' : ''}`}
@@ -46,6 +52,12 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
           onClick={() => onViewChange('coach')}
         >
           🤖 Play with Coach
+        </button>
+        <button
+          className={`header-nav-btn ${view === 'review' ? 'active' : ''}`}
+          onClick={() => onViewChange('review')}
+        >
+          🔍 Game Review
         </button>
       </nav>
 
