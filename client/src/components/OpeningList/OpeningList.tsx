@@ -1,22 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './OpeningList.css';
 import { Opening } from '../../types';
 import { fetchOpenings } from '../../api/openings';
+import { openingPath, familyPath, openingGamesPath } from '../../paths';
 import PopularOpenings from './PopularOpenings';
 import MostPopularOpenings from './MostPopularOpenings';
-import FamilyVariationsView from './FamilyVariationsView';
-
-interface OpeningListProps {
-  onSelect: (opening: Opening) => void;
-  selectedFamily: { family: string; variations: Opening[]; color: string } | null;
-  onFamilySelect: (family: { family: string; variations: Opening[]; color: string } | null) => void;
-  onFamilyClear: () => void;
-}
 
 const ECO_GROUPS = ['A', 'B', 'C', 'D', 'E'];
 type ListMode = 'top' | 'popular' | 'browse';
 
-export default function OpeningList({ onSelect, selectedFamily, onFamilySelect, onFamilyClear }: OpeningListProps) {
+export default function OpeningList() {
+  const navigate = useNavigate();
+  const onSelect = (opening: Opening) => navigate(openingPath(opening.eco, opening.name));
+  const handleFamilySelect = (family: string, _variations: Opening[], color: string) =>
+    navigate(familyPath(family, color));
+
   const [mode, setMode] = useState<ListMode>('top');
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,10 +45,6 @@ export default function OpeningList({ onSelect, selectedFamily, onFamilySelect, 
 
   useEffect(() => { setPage(1); }, [search, ecoFilter]);
 
-  const handleFamilySelect = (family: string, variations: Opening[], color: string) => {
-    onFamilySelect({ family, variations, color });
-  };
-
   // Group openings by family name
   const grouped = openings.reduce<Record<string, Opening[]>>((acc, o) => {
     const key = o.family;
@@ -60,19 +55,6 @@ export default function OpeningList({ onSelect, selectedFamily, onFamilySelect, 
 
   const families = Object.keys(grouped).sort();
   const totalPages = Math.ceil(total / PAGE_SIZE);
-
-  // When a family is selected, show its variations as a full-page replacement
-  if (selectedFamily) {
-    return (
-      <FamilyVariationsView
-        family={selectedFamily.family}
-        variations={selectedFamily.variations}
-        color={selectedFamily.color}
-        onSelect={onSelect}
-        onBack={onFamilyClear}
-      />
-    );
-  }
 
   return (
     <div className="opening-list-container">
@@ -119,6 +101,13 @@ export default function OpeningList({ onSelect, selectedFamily, onFamilySelect, 
             onClick={() => setMode('browse')}
           >
             ♟ Browse All
+          </button>
+          <button
+            id="mode-tab-games"
+            className="ol-mode-tab"
+            onClick={() => navigate(openingGamesPath())}
+          >
+            🎮 Practice Games
           </button>
         </div>
       </div>

@@ -1,25 +1,45 @@
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Opening } from '../../types';
+import { openingPath } from '../../paths';
 import './FamilyVariationsView.css';
-
-function openingHref(opening: Opening): string {
-  return `#opening=${encodeURIComponent(JSON.stringify(opening))}`;
-}
 
 interface FamilyVariationsViewProps {
   family: string;
   variations: Opening[];
   color: string;
-  onSelect: (opening: Opening) => void;
   onBack: () => void;
 }
+
+type SortKey = 'default' | 'moves-asc' | 'moves-desc';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'default', label: 'Default order' },
+  { key: 'moves-desc', label: 'Most moves' },
+  { key: 'moves-asc', label: 'Fewest moves' },
+];
 
 export default function FamilyVariationsView({
   family,
   variations,
   color,
-  onSelect,
   onBack,
 }: FamilyVariationsViewProps) {
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('default');
+
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = q
+      ? variations.filter(o => o.name.toLowerCase().includes(q) || o.eco.toLowerCase().includes(q))
+      : variations;
+    if (sortKey !== 'default') {
+      const dir = sortKey === 'moves-asc' ? 1 : -1;
+      list = [...list].sort((a, b) => dir * (a.moves.length - b.moves.length));
+    }
+    return list;
+  }, [variations, search, sortKey]);
+
   return (
     <div className="fvv-container">
       {/* Header */}
@@ -30,7 +50,9 @@ export default function FamilyVariationsView({
         <div className="fvv-header-info">
           <h2 className="fvv-title">{family}</h2>
           <p className="fvv-subtitle">
-            {variations.length} variation{variations.length !== 1 ? 's' : ''} — click any to study
+            {search.trim()
+              ? `${shown.length} of ${variations.length} variations`
+              : `${variations.length} variation${variations.length !== 1 ? 's' : ''} — click any to study`}
           </p>
         </div>
         <div className="fvv-count-badge" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color, borderColor: `color-mix(in srgb, ${color} 40%, transparent)` }}>
@@ -38,17 +60,35 @@ export default function FamilyVariationsView({
         </div>
       </div>
 
+      {/* Search + sort toolbar */}
+      <div className="fvv-toolbar">
+        <input
+          className="fvv-search"
+          placeholder="Search variations by name or ECO…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <label className="fvv-sort">
+          <span>Sort</span>
+          <select className="fvv-sort-select" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}>
+            {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </label>
+      </div>
+
       {/* Grid of variation cards */}
       <div className="fvv-body">
+        {shown.length === 0 ? (
+          <div className="fvv-empty">No variations match “{search.trim()}”.</div>
+        ) : (
         <div className="fvv-grid">
-          {variations.map((opening, i) => (
-            <a
+          {shown.map((opening, i) => (
+            <Link
               key={`${opening.eco}-${i}`}
               id={`fvv-card-${opening.eco}-${i}`}
-              href={openingHref(opening)}
+              to={openingPath(opening.eco, opening.name)}
               className="fvv-card"
               style={{ '--fvv-color': color } as React.CSSProperties}
-              onClick={(e) => { e.preventDefault(); onSelect(opening); }}
             >
               <div className="fvv-card-top">
                 <span className="fvv-card-name">{opening.name}</span>
@@ -66,9 +106,10 @@ export default function FamilyVariationsView({
                 <span className="badge badge-accent">{Math.ceil(opening.moves.length / 2)} moves</span>
                 <span className="fvv-card-plies">{opening.moves.length} plies</span>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

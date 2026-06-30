@@ -1,123 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Layout/Header';
 import OpeningList from './components/OpeningList/OpeningList';
-import TheoryView from './components/TheoryView/TheoryView';
-import ExerciseView from './components/ExerciseView/ExerciseView';
 import VisionTraining from './components/VisionTraining/VisionTraining';
 import PlayWithCoach from './components/CoachGame/PlayWithCoach';
 import GameReview from './components/GameReview/GameReview';
-import MastersMode from './components/MastersMode/MastersMode';
+import MastersLayout from './components/MastersMode/MastersMode';
+import PlayerBrowser from './components/MastersMode/PlayerBrowser';
+import MasterExplorerPage from './components/MastersMode/MasterExplorerPage';
+import MasterGuessTrainerPage from './components/MastersMode/MasterGuessTrainerPage';
+import TheoryPage from './pages/TheoryPage';
+import ExercisePage from './pages/ExercisePage';
+import FamilyPage from './pages/FamilyPage';
+import OpeningGamesBrowser from './components/OpeningGames/OpeningGamesBrowser';
 import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
-import { AppView, Opening } from './types';
-
-const VIEW_STORAGE_KEY = 'chess-trainer-view';
-const OPENING_STORAGE_KEY = 'chess-trainer-opening';
 
 export default function App() {
-  const [view, setView] = useState<AppView>(() => {
-    return (localStorage.getItem(VIEW_STORAGE_KEY) as AppView) || 'list';
-  });
-  const [selectedOpening, setSelectedOpening] = useState<Opening | null>(() => {
-    const stored = localStorage.getItem(OPENING_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  });
-  const [selectedFamily, setSelectedFamily] = useState<{ family: string; variations: Opening[]; color: string } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
 
-  // Handle ?#opening=<encoded> links (e.g. opened in new tab from FamilyVariationsView)
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#opening=')) {
-      try {
-        const opening: Opening = JSON.parse(decodeURIComponent(hash.slice('#opening='.length)));
-        setSelectedOpening(opening);
-        setView('theory');
-      } catch {
-        // Ignore malformed hash
-      }
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(VIEW_STORAGE_KEY, view);
-  }, [view]);
-
-  useEffect(() => {
-    if (selectedOpening) {
-      localStorage.setItem(OPENING_STORAGE_KEY, JSON.stringify(selectedOpening));
-    } else {
-      localStorage.removeItem(OPENING_STORAGE_KEY);
-    }
-  }, [selectedOpening]);
-
-  const handleSelectOpening = (opening: Opening) => {
-    setSelectedOpening(opening);
-    setView('theory');
-  };
-
-  const handleBackToList = () => {
-    setView('list');
-    setSelectedOpening(null);
-    // selectedFamily is intentionally preserved so the user returns to the family variations page
-  };
-
-  const handleStartExercise = () => {
-    setView('exercise');
-  };
-
-  const handleBackToTheory = () => {
-    setView('theory');
-  };
-
   return (
     <>
-      <Header
-        view={view}
-        selectedOpening={selectedOpening}
-        onBack={view === 'theory' ? handleBackToList : undefined}
-        onShowThemes={() => setShowThemePanel(true)}
-        onViewChange={setView}
-      />
+      <Header onShowThemes={() => setShowThemePanel(true)} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {view === 'list' && (
-          <OpeningList
-            onSelect={handleSelectOpening}
-            selectedFamily={selectedFamily}
-            onFamilySelect={setSelectedFamily}
-            onFamilyClear={() => setSelectedFamily(null)}
-          />
-        )}
-        {view === 'theory' && selectedOpening && (
-          <TheoryView
-            opening={selectedOpening}
-            theme={theme}
-            onStartExercise={handleStartExercise}
-            onAppMode={setAppMode}
-          />
-        )}
-        {view === 'exercise' && selectedOpening && (
-          <ExerciseView
-            opening={selectedOpening}
-            theme={theme}
-            onBackToTheory={handleBackToTheory}
-          />
-        )}
-        {view === 'vision' && (
-          <VisionTraining theme={theme} />
-        )}
-        {view === 'coach' && (
-          <PlayWithCoach theme={theme} />
-        )}
-        {view === 'review' && (
-          <GameReview theme={theme} />
-        )}
-        {view === 'masters' && (
-          <MastersMode theme={theme} />
-        )}
+        <Routes>
+          <Route path="/" element={<Navigate to="/repertoire" replace />} />
+          <Route path="/repertoire" element={<OpeningList />} />
+          <Route path="/repertoire/family/:family" element={<FamilyPage />} />
+          <Route path="/repertoire/games" element={<OpeningGamesBrowser />} />
+          <Route path="/repertoire/games/:openingKey" element={<OpeningGamesBrowser />} />
+
+          <Route path="/openings/:eco/:name" element={<TheoryPage theme={theme} onAppMode={setAppMode} />} />
+          <Route path="/openings/:eco/:name/exercise" element={<ExercisePage theme={theme} />} />
+
+          <Route path="/masters" element={<MastersLayout theme={theme} />}>
+            <Route index element={<Navigate to="players" replace />} />
+            <Route path="players" element={<PlayerBrowser />} />
+            <Route path="players/:collectionKey" element={<PlayerBrowser />} />
+            <Route path="explore" element={<MasterExplorerPage />} />
+          </Route>
+          <Route path="/masters/game/:gameId" element={<MasterGuessTrainerPage theme={theme} />} />
+
+          <Route path="/vision" element={<VisionTraining theme={theme} />} />
+          <Route path="/coach" element={<PlayWithCoach theme={theme} />} />
+          <Route path="/review" element={<GameReview theme={theme} />} />
+
+          <Route path="*" element={<Navigate to="/repertoire" replace />} />
+        </Routes>
       </main>
 
       {showThemePanel && (

@@ -1,18 +1,29 @@
+import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import './Header.css';
-import { Opening, AppView } from '../../types';
+import { repertoirePath } from '../../paths';
 
 interface HeaderProps {
-  selectedOpening?: Opening | null;
-  view: AppView;
-  onBack?: () => void;
   onShowThemes: () => void;
-  onViewChange: (view: AppView) => void;
 }
 
-export default function Header({ selectedOpening, view, onBack, onShowThemes, onViewChange }: HeaderProps) {
+export default function Header({ onShowThemes }: HeaderProps) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isRepertoire =
+    pathname === '/' || pathname.startsWith('/repertoire') || pathname.startsWith('/openings');
+  const isMasters = pathname.startsWith('/masters');
+  const isVision = pathname.startsWith('/vision');
+  const isCoach = pathname.startsWith('/coach');
+  const isReview = pathname.startsWith('/review');
+
+  // Opening badge (theory + exercise) and the back button (theory only).
+  const openingMatch = useMatch('/openings/:eco/:name/*');
+  const theoryMatch = useMatch('/openings/:eco/:name');
+
   return (
     <header className="header">
-      <a className="header-logo" href="/" onClick={(e) => { e.preventDefault(); onViewChange('list'); }}>
+      <a className="header-logo" href="/repertoire" onClick={(e) => { e.preventDefault(); navigate(repertoirePath()); }}>
         <div className="header-logo-icon">♟</div>
         <div className="header-logo-text">
           <span className="header-logo-title">Chess Trainer</span>
@@ -20,43 +31,28 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
         </div>
       </a>
 
-      {selectedOpening && view !== 'list' && view !== 'vision' && view !== 'coach' && view !== 'masters' && view !== 'review' && (
+      {openingMatch && (
         <div className="header-opening-info">
-          <span className="badge badge-gold">{selectedOpening.eco}</span>
-          <span className="header-opening-name">{selectedOpening.name}</span>
+          <span className="badge badge-gold">{openingMatch.params.eco}</span>
+          <span className="header-opening-name">{openingMatch.params.name}</span>
         </div>
       )}
 
       {/* Navigation tabs */}
       <nav className="header-nav">
-        <button
-          className={`header-nav-btn ${view !== 'vision' && view !== 'coach' && view !== 'masters' && view !== 'review' ? 'active' : ''}`}
-          onClick={() => onViewChange('list')}
-        >
+        <button className={`header-nav-btn ${isRepertoire ? 'active' : ''}`} onClick={() => navigate('/repertoire')}>
           📖 Repertoire
         </button>
-        <button
-          className={`header-nav-btn ${view === 'masters' ? 'active' : ''}`}
-          onClick={() => onViewChange('masters')}
-        >
+        <button className={`header-nav-btn ${isMasters ? 'active' : ''}`} onClick={() => navigate('/masters')}>
           ♚ Master Games
         </button>
-        <button
-          className={`header-nav-btn ${view === 'vision' ? 'active' : ''}`}
-          onClick={() => onViewChange('vision')}
-        >
+        <button className={`header-nav-btn ${isVision ? 'active' : ''}`} onClick={() => navigate('/vision')}>
           🎯 Vision Training
         </button>
-        <button
-          className={`header-nav-btn ${view === 'coach' ? 'active' : ''}`}
-          onClick={() => onViewChange('coach')}
-        >
+        <button className={`header-nav-btn ${isCoach ? 'active' : ''}`} onClick={() => navigate('/coach')}>
           🤖 Play with Coach
         </button>
-        <button
-          className={`header-nav-btn ${view === 'review' ? 'active' : ''}`}
-          onClick={() => onViewChange('review')}
-        >
+        <button className={`header-nav-btn ${isReview ? 'active' : ''}`} onClick={() => navigate('/review')}>
           🔍 Game Review
         </button>
       </nav>
@@ -64,8 +60,8 @@ export default function Header({ selectedOpening, view, onBack, onShowThemes, on
       <div className="header-spacer" />
 
       <div className="header-actions">
-        {view !== 'list' && view !== 'vision' && view !== 'coach' && onBack && (
-          <button className="header-back-btn" onClick={onBack}>
+        {theoryMatch && (
+          <button className="header-back-btn" onClick={() => navigate(repertoirePath())}>
             ← Back to Openings
           </button>
         )}

@@ -77,6 +77,9 @@ export interface Collection {
   key: string;
   label: string;
   count: number;
+  category?: 'elite' | 'player' | 'opening';
+  group?: 'e4' | 'd4' | 'other';
+  popular?: boolean;
 }
 
 export interface CollectionGamesResponse {
