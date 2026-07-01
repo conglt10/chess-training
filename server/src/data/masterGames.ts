@@ -88,16 +88,31 @@ function countPlies(pgn: string): number {
     .filter(t => t && !VALID_RESULTS.has(t as GameResult) && t !== '*').length;
 }
 
+// Opening-collection classification, written by `npm run download-opening-games`.
+interface OpeningManifestEntry { label: string; group: 'e4' | 'd4' | 'other'; popular: boolean }
+let openingsManifest: Record<string, OpeningManifestEntry> | null = null;
+function getOpeningsManifest(): Record<string, OpeningManifestEntry> {
+  if (openingsManifest) return openingsManifest;
+  try {
+    const p = path.join(DATA_DIR, 'openings.manifest.json');
+    openingsManifest = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : {};
+  } catch { openingsManifest = {}; }
+  return openingsManifest!;
+}
+
+function titleCase(base: string): string {
+  return base.split('_').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 // Derive a collection key + human label from a PGN filename.
 function collectionFromFile(file: string): { key: string; label: string } {
   if (file === 'games.pgn') return { key: ELITE_KEY, label: 'Lichess Elite (2500+)' };
+  if (file.startsWith('opening_')) {
+    const key = file.replace(/\.pgn$/i, '').replace(/^opening_/, '');
+    return { key, label: getOpeningsManifest()[key]?.label ?? titleCase(key) };
+  }
   const base = file.replace(/\.pgn$/i, '').replace(/^master_games_/, '');
-  const label = base
-    .split('_')
-    .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-  return { key: base, label: label || base };
+  return { key: base, label: titleCase(base) || base };
 }
 
 function rawToSummary(raw: RawGame): MasterGameSummary {
@@ -184,8 +199,20 @@ function ensureMetadata(): void {
     }
   }
 
+  const manifest = getOpeningsManifest();
   collections = [...rawByCollection!.entries()]
-    .map(([key, gs]) => ({ key, label: labels.get(key)!, count: gs.length }))
+    .map(([key, gs]) => {
+      const m = manifest[key];
+      const category: 'elite' | 'player' | 'opening' =
+        key === ELITE_KEY ? 'elite' : m ? 'opening' : 'player';
+      return {
+        key,
+        label: labels.get(key)!,
+        count: gs.length,
+        category,
+        ...(m ? { group: m.group, popular: m.popular } : {}),
+      };
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 
   console.log(

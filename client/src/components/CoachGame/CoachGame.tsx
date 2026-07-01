@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import './CoachGame.css';
+import { downloadPgn } from '../../utils/pgnExport';
 import ChessBoard, {
   COACH_LAST_MOVE_COLOR,
   PLAYER_LAST_MOVE_COLOR,
@@ -369,10 +370,20 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
     onNewGame();
   };
 
-  const canReview = !!onReview && gameStatus !== 'playing' && moveHistory.length > 0;
+  const gameOver = gameStatus !== 'playing';
+  const canReview = !!onReview && gameOver && moveHistory.length > 0;
+  const canExport = gameOver && moveHistory.length > 0;
+
   const handleReview = () => {
     if (!canReview) return;
     onReview!(buildCoachPgn(moveHistory, playerColor, cfg.label, winner));
+  };
+
+  const handleDownload = () => {
+    if (!canExport) return;
+    const pgn = buildCoachPgn(moveHistory, playerColor, cfg.label, winner);
+    const slug = cfg.label.toLowerCase().replace(/\s+/g, '-');
+    downloadPgn(pgn, `coach-game-${slug}`);
   };
 
   // ── Status label ──────────────────────────────────────────────────────────
@@ -460,6 +471,11 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
                         📊 Review Game
                       </button>
                     )}
+                    {canExport && (
+                      <button className="btn btn-ghost" onClick={handleDownload}>
+                        ⬇ Download PGN
+                      </button>
+                    )}
                     <button className={`btn ${canReview ? 'btn-ghost' : 'btn-primary'}`} onClick={handleNewGame}>
                       🔄 New Game
                     </button>
@@ -527,6 +543,11 @@ export default function CoachGame({ level, playerColor, strictMode, theme, onNew
             {canReview && (
               <button className="btn btn-primary btn-sm coach-review-btn" onClick={handleReview}>
                 📊 Review Game
+              </button>
+            )}
+            {canExport && (
+              <button className="btn btn-ghost btn-sm" onClick={handleDownload}>
+                ⬇ Download PGN
               </button>
             )}
             {gameStatus !== 'playing' && (

@@ -40,6 +40,12 @@ export interface Collection {
   key: string;
   label: string;
   count: number;
+  /** Where this collection came from. */
+  category?: 'elite' | 'player' | 'opening';
+  /** First-move group (opening collections only). */
+  group?: 'e4' | 'd4' | 'other';
+  /** Featured in the "Most Popular" filter (opening collections only). */
+  popular?: boolean;
 }
 
 /** Game metadata without the (heavy) move lists — used in explorer game lists. */

@@ -1,0 +1,112 @@
+{
+  "sicilian-najdorf": {
+    "label": "Sicilian Defense: Najdorf",
+    "group": "e4",
+    "popular": true
+  },
+  "sicilian-scheveningen": {
+    "label": "Sicilian Defense: Scheveningen",
+    "group": "e4",
+    "popular": false
+  },
+  "french-advance": {
+    "label": "French Defense: Advance",
+    "group": "e4",
+    "popular": true
+  },
+  "caro-kann-advance": {
+    "label": "Caro-Kann Defense: Advance",
+    "group": "e4",
+    "popular": true
+  },
+  "ruy-lopez-chigorin": {
+    "label": "Ruy Lopez: Chigorin",
+    "group": "e4",
+    "popular": true
+  },
+  "ruy-lopez-berlin": {
+    "label": "Ruy Lopez: Berlin Defense",
+    "group": "e4",
+    "popular": true
+  },
+  "italian-two-knights": {
+    "label": "Italian Game: Two Knights",
+    "group": "e4",
+    "popular": true
+  },
+  "petroff": {
+    "label": "Petrov Defense",
+    "group": "e4",
+    "popular": false
+  },
+  "kings-gambit": {
+    "label": "King's Gambit",
+    "group": "e4",
+    "popular": false
+  },
+  "qgd-exchange": {
+    "label": "Queen's Gambit Declined: Exchange",
+    "group": "d4",
+    "popular": true
+  },
+  "queens-gambit-accepted": {
+    "label": "Queen's Gambit Accepted",
+    "group": "d4",
+    "popular": true
+  },
+  "slav": {
+    "label": "Slav Defense",
+    "group": "d4",
+    "popular": true
+  },
+  "semi-slav-meran": {
+    "label": "Semi-Slav Defense: Meran",
+    "group": "d4",
+    "popular": false
+  },
+  "kings-indian-classical": {
+    "label": "King's Indian Defense: Classical",
+    "group": "d4",
+    "popular": true
+  },
+  "grunfeld-exchange": {
+    "label": "Grünfeld Defense: Exchange",
+    "group": "d4",
+    "popular": true
+  },
+  "benko-gambit": {
+    "label": "Benko Gambit",
+    "group": "d4",
+    "popular": false
+  },
+  "london-system": {
+    "label": "London System",
+    "group": "d4",
+    "popular": true
+  },
+  "catalan-closed": {
+    "label": "Catalan: Closed",
+    "group": "d4",
+    "popular": false
+  },
+  "english-symmetrical": {
+    "label": "English: Symmetrical",
+    "group": "other",
+    "popular": true
+  },
+  "english-caro-kann": {
+    "label": "English: 1...c6",
+    "group": "other",
+    "popular": false
+  },
+  "reti-kia": {
+    "label": "Réti / King's Indian Attack",
+    "group": "other",
+    "popular": false
+  },
+  "bird": {
+    "label": "Bird's Opening",
+    "group": "other",
+    "popular": false
+  }
+}

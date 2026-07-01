@@ -1,0 +1,33 @@
+.opening-games {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  flex: 1;
+}
+
+.og-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.og-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.og-search {
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+}
+
+/* First-move badge used in place of a photo on opening cards. */
+.og-avatar {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
