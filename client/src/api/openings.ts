@@ -1,6 +1,6 @@
 import { Opening, OpeningsResponse, FamilySummariesResponse, FirstMoveTab } from '../types';
 
-const BASE = '/api';
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 export async function fetchOpenings(params: {
   search?: string;
