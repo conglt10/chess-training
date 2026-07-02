@@ -7,9 +7,12 @@
 
 .chessboard-root {
   position: relative;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.25);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -32,7 +35,8 @@
 
 .board-flip-btn:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }

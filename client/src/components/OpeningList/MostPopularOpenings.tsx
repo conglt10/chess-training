@@ -32,7 +32,7 @@ const CURATED: CuratedGroup[] = [
     id: 'e4',
     label: '1.e4 — King\'s Pawn',
     move: '1. e4',
-    color: '#6c8aff',
+    color: '#81b64c',
     icon: '♙',
     whiteWin: 39,
     draw: 28,

@@ -18,7 +18,37 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'other', label: 'Other' },
 ];
 
-const GROUP_BADGE: Record<string, string> = { e4: '1.e4', d4: '1.d4', other: '✦' };
+const GROUP_SYMBOL: Record<string, string> = { e4: '♙', d4: '♟', other: '♞' };
+
+/** Chess piece symbol per opening collection — falls back to first-move group symbol. */
+const OPENING_SYMBOL: Record<string, string> = {
+  'sicilian-najdorf': '♞',
+  'sicilian-scheveningen': '♞',
+  'french-advance': '♜',
+  'caro-kann-advance': '♟',
+  'ruy-lopez-chigorin': '♗',
+  'ruy-lopez-berlin': '♗',
+  'italian-two-knights': '♘',
+  'petroff': '♞',
+  'kings-gambit': '♕',
+  'qgd-exchange': '♕',
+  'queens-gambit-accepted': '♕',
+  'slav': '♜',
+  'semi-slav-meran': '♜',
+  'kings-indian-classical': '♚',
+  'grunfeld-exchange': '♞',
+  'benko-gambit': '♖',
+  'london-system': '♗',
+  'catalan-closed': '♗',
+  'english-symmetrical': '♖',
+  'english-caro-kann': '♖',
+  'reti-kia': '♘',
+  'bird': '♙',
+};
+
+function openingSymbol(key: string, group?: string): string {
+  return OPENING_SYMBOL[key] ?? GROUP_SYMBOL[group ?? 'other'];
+}
 
 function matches(c: Collection, filter: Filter): boolean {
   if (filter === 'all') return true;
@@ -91,7 +121,7 @@ export default function OpeningGamesBrowser() {
           {shown.map(c => (
             <button key={c.key} className="masters-collection-card glass" onClick={() => navigate(openingGamesPath(c.key))}>
               <span className="masters-avatar og-avatar" style={{ background: avatarGradient(c.key) }}>
-                {GROUP_BADGE[c.group ?? 'other']}
+                {openingSymbol(c.key, c.group)}
               </span>
               <span className="masters-collection-name">{c.label}</span>
               <span className="masters-collection-count">{c.count.toLocaleString()} games{c.popular ? ' · ⭐' : ''}</span>

@@ -47,7 +47,8 @@
 }
 
 .fvv-title {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 24px;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.02em;

@@ -9,7 +9,7 @@ import FamilyVariationsView from '../components/OpeningList/FamilyVariationsView
 export default function FamilyPage() {
   const { family = '' } = useParams();
   const [params] = useSearchParams();
-  const color = params.get('color') || '#6c8aff';
+  const color = params.get('color') || '#81b64c';
   const navigate = useNavigate();
   const [variations, setVariations] = useState<Opening[] | null>(null);
 

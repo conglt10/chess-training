@@ -1,9 +1,10 @@
 .masters-mode {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  flex: 1;
+  gap: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* ── Intro + opening quick-jump ─────────────────────────────────────────── */
@@ -13,10 +14,18 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding: 24px 32px;
+  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-strong);
+  flex-shrink: 0;
 }
 .masters-intro-text h2 {
-  margin: 0 0 4px;
-  font-size: 1.4rem;
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
 }
 .masters-intro-text p {
   margin: 0;
@@ -28,6 +37,7 @@
   min-width: 320px;
   flex: 1;
   max-width: 420px;
+  margin-left: auto;
 }
 .masters-jump-input {
   width: 100%;
@@ -67,7 +77,14 @@
 .masters-jump-name { font-size: 0.9rem; }
 
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
-.masters-tabs { display: flex; gap: 8px; }
+.masters-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 32px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
 .masters-tab {
   display: inline-block;
   text-decoration: none;
@@ -86,6 +103,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 32px;
+  align-content: start;
 }
 .masters-collection-card {
   display: flex;
@@ -214,14 +235,44 @@
 .masters-pager-btn:disabled { opacity: 0.4; cursor: default; }
 .masters-pager-info { color: var(--text-secondary); font-size: 0.85rem; padding: 0 6px; }
 
+/* Outlet: explore page (jump + board explorer) */
+.masters-mode > .masters-jump {
+  padding: 16px 32px 0;
+  flex: none;
+  max-width: none;
+  width: 100%;
+}
+
+.masters-mode > .masters-explorer {
+  margin: 16px 32px 32px;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .masters-intro,
+  .masters-tabs,
+  .masters-collections,
+  .masters-mode > .masters-jump,
+  .masters-mode > .masters-explorer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .masters-mode > .masters-explorer {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}
+
 /* ── Layout: board + sidebar (coach-style big centred board) ─────────────── */
 .masters-explorer {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) 380px;
   gap: 0;
-  height: calc(100vh - 250px);
-  min-height: 480px;
-  border: 1px solid var(--border);
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
