@@ -23,8 +23,9 @@ const router = Router();
 // keep working regardless of engine state.
 const nativeFetch: typeof fetch = globalThis.fetch.bind(globalThis);
 
+const SITE_URL = process.env.SITE_URL || 'https://localhost';
 const UA =
-  'Mozilla/5.0 (compatible; ChessTrainer/1.0; +https://localhost) game-review-import';
+  `Mozilla/5.0 (compatible; ChessTrainer/1.0; +${SITE_URL}) game-review-import`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

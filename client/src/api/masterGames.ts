@@ -1,6 +1,6 @@
 import { ExplorerResult, MasterGame, Collection, CollectionGamesResponse } from '../types';
 
-const BASE = '/api';
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 export async function fetchCollections(): Promise<Collection[]> {
   const res = await fetch(`${BASE}/master-games/collections`);
