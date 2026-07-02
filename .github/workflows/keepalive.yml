@@ -1,0 +1,42 @@
+name: Keep Render service warm
+
+# Render's free web services spin down after ~15 minutes of inactivity and then
+# take 30-60s to cold-start on the next request. This scheduled job pings the
+# server's /health endpoint so the service stays awake during active hours,
+# eliminating the cold-start delay users would otherwise hit on the first move
+# or first data load.
+#
+# Setup: add a repository *variable* named RENDER_HEALTH_URL pointing at the
+# deployed server's health endpoint, e.g.
+#   https://your-server.onrender.com/health
+# (Settings -> Secrets and variables -> Actions -> Variables -> New variable)
+
+on:
+  schedule:
+    # Every 10 minutes. Note: GitHub may delay scheduled runs under load.
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          URL="${{ vars.RENDER_HEALTH_URL }}"
+          if [ -z "$URL" ]; then
+            echo "RENDER_HEALTH_URL variable is not set — skipping ping."
+            echo "Add it under Settings -> Secrets and variables -> Actions -> Variables."
+            exit 0
+          fi
+          echo "Pinging $URL"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$URL" || echo "000")
+          echo "HTTP status: $code"
+          # A cold start can take a while; retry once if the first hit failed.
+          if [ "$code" != "200" ]; then
+            echo "First ping non-200, waiting 30s and retrying to allow wake-up…"
+            sleep 30
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$URL" || echo "000")
+            echo "Retry HTTP status: $code"
+          fi
+          [ "$code" = "200" ]

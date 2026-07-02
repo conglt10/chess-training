@@ -5,6 +5,16 @@ import { Opening } from '../types';
 
 const router = Router();
 
+// The opening book is static between deploys, so let browsers and any CDN in
+// front of the service cache GET responses. A new deploy ships new content, so
+// a modest max-age is safe; stale-while-revalidate keeps navigation snappy.
+router.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  }
+  next();
+});
+
 // ── GET /api/openings ─────────────────────────────────────────────────────────
 // Query params:
 //   search   – substring match on name or ECO code

@@ -6,6 +6,7 @@ import { getStockfishService } from '../utils/stockfishService';
 import type { AnalysisResult } from '../utils/stockfishService';
 import { generatePlayerMoveComment } from '../utils/moveCommentator';
 import type { MoveComment } from '../utils/moveCommentator';
+import { playMoveSound } from '../utils/sound';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -20,17 +21,6 @@ export interface CoachMoveEntry {
 }
 
 export type GameStatus = 'playing' | 'checkmate' | 'draw' | 'resigned';
-
-// ── Sounds ─────────────────────────────────────────────────────────────────────
-
-const moveAudio    = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3');
-const captureAudio = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Capture.mp3');
-
-function playMoveSound(isCapture: boolean) {
-  const audio = isCapture ? captureAudio : moveAudio;
-  audio.currentTime = 0;
-  audio.play().catch(() => {});
-}
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
@@ -198,7 +188,12 @@ export function useCoachGame({ level, playerColor }: UseCoachGameProps): UseCoac
         setIsCoachThinking(false);
         resolveGameOver();
       })
-      .catch(() => setIsCoachThinking(false));
+      .catch(() => setIsCoachThinking(false))
+      .finally(() => {
+        // Release the guard only once the reply is fully applied — well after
+        // the coach-move effect for this turn has already run and skipped.
+        playerMoveInProgressRef.current = false;
+      });
   }, [level, syncState, resolveGameOver]);
 
   // ── Player move ────────────────────────────────────────────────────────────
@@ -273,7 +268,20 @@ export function useCoachGame({ level, playerColor }: UseCoachGameProps): UseCoac
       );
     };
 
-    // Async chain: post-analysis → comment → coach move (sequenced, no race).
+    // Fire the coach's reply move IMMEDIATELY so the board responds fast. The
+    // commentary analysis below runs concurrently on the server engine pool
+    // (separate engines), so the player no longer waits for commentary to
+    // finish before the coach starts thinking. fireCoachMove releases the
+    // in-progress guard when it settles.
+    if (!chess.isGameOver() && chess.turn() === coachColor) {
+      fireCoachMove(chess.fen());
+    } else {
+      playerMoveInProgressRef.current = false;
+    }
+
+    // Commentary (independent of the coach move): post-analysis → comment.
+    // Reuses the background pre-analysis for `fenBefore` when it's ready,
+    // only falling back to a fresh analysis if it hadn't finished in time.
     getStockfishService()
       .analyze(fenAfter, { skillLevel: 20, depth: 12, movetime: 1500, multiPV: 1 })
       .promise
@@ -283,23 +291,13 @@ export function useCoachGame({ level, playerColor }: UseCoachGameProps): UseCoac
           applyComment(preAnalysis, postScore);
           return;
         }
-        // Fallback: fresh pre-analysis (only if background didn't finish in time)
         return getStockfishService()
           .analyze(fenBefore, { skillLevel: 20, depth: 12, movetime: 1500, multiPV: 3 })
           .promise
           .then(freshPre => applyComment(freshPre, postScore))
           .catch(() => {});
       })
-      .catch(() => {})
-      .finally(() => {
-        // Commentary done (or failed). Now fire the coach's reply — only AFTER
-        // commentary so the engine isn't cancelled mid-analysis.
-        playerMoveInProgressRef.current = false;
-        const chess2 = chessRef.current;
-        if (!chess2.isGameOver() && chess2.turn() === coachColor) {
-          fireCoachMove(chess2.fen());
-        }
-      });
+      .catch(() => {});
 
     return true;
   }, [gameStatus, coachColor, playerColor, level, syncState, resolveGameOver, fireCoachMove]);

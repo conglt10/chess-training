@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CoachSetup from './CoachSetup';
 import CoachGame from './CoachGame';
 import GameReview from '../GameReview/GameReview';
+import { getStockfishService } from '../../utils/stockfishService';
 import type { ThemeConfig } from '../../types';
 import type { CoachLevel } from '../../utils/chessAI';
 
@@ -12,6 +13,10 @@ interface PlayWithCoachProps {
 type CoachScreen = 'setup' | 'game' | 'review';
 
 export default function PlayWithCoach({ theme }: PlayWithCoachProps) {
+  // Open the engine WebSocket while the user is still on the setup screen, so
+  // the handshake is already done by the time the first move needs analysis.
+  useEffect(() => { getStockfishService(); }, []);
+
   const [screen, setScreen] = useState<CoachScreen>('setup');
   const [level, setLevel] = useState<CoachLevel>('intermediate');
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');

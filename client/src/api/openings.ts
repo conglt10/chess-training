@@ -1,4 +1,5 @@
 import { Opening, OpeningsResponse, FamilySummariesResponse, FirstMoveTab } from '../types';
+import { cached } from './cache';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
@@ -31,15 +32,19 @@ export async function fetchOpenings(params: {
  */
 export async function fetchOpeningsByFamilies(families: string[]): Promise<Opening[]> {
   if (families.length === 0) return [];
-  const q = new URLSearchParams({
-    families: families.join(','),
-    pageSize: '5000',   // more than enough for any curated list
-  });
-  const res = await fetch(`${BASE}/openings?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const familyList = families.join(',');
+  // Curated family sets are static — cache by the requested families.
+  return cached(`openings/families-list:${familyList}`, async () => {
+    const q = new URLSearchParams({
+      families: familyList,
+      pageSize: '5000',   // more than enough for any curated list
+    });
+    const res = await fetch(`${BASE}/openings?${q.toString()}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
 
-  const data: OpeningsResponse = await res.json();
-  return data.openings;
+    const data: OpeningsResponse = await res.json();
+    return data.openings;
+  });
 }
 
 export async function fetchFamilies(): Promise<string[]> {
@@ -60,9 +65,13 @@ export async function fetchFamilySummaries(params: {
   if (params.search)    q.set('search',    params.search);
   if (params.page)      q.set('page',      String(params.page));
   if (params.pageSize)  q.set('pageSize',  String(params.pageSize));
-  const res = await fetch(`${BASE}/openings/families?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  const qs = q.toString();
+  // Paginated but static per query — cache by the exact query string.
+  return cached(`openings/families:${qs}`, async () => {
+    const res = await fetch(`${BASE}/openings/families?${qs}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<FamilySummariesResponse>;
+  });
 }
 
 export async function fetchOpening(eco: string, name: string): Promise<Opening> {

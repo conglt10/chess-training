@@ -30,9 +30,12 @@ const INDEX_PLIES = 40;
 const MIN_PLIES = 12;
 const ELITE_KEY = 'lichess-elite';
 
-// A game with its header metadata extracted cheaply, plus the raw PGN text so
-// the moves can be parsed on demand (drill) or in bulk (explorer index).
-type RawGame = MasterGameSummary & { pgn: string };
+// A game with its header metadata extracted cheaply. The raw PGN text is NOT
+// retained (that would be ~30 MB across the corpus); instead we keep a light
+// reference — the source file plus the game's index within that file — so the
+// full movetext can be re-read from disk on demand (drill). This keeps the
+// resident metadata cache small, which matters on Render's memory-limited tier.
+type RawGame = MasterGameSummary & { _file: string; _idx: number };
 
 // ── In-memory caches ───────────────────────────────────────────────────────
 // Cheap header-only metadata (built at startup):
@@ -40,6 +43,27 @@ let metaLoaded = false;
 let rawById: Map<string, RawGame> | null = null;
 let rawByCollection: Map<string, RawGame[]> | null = null;
 let collections: Collection[] | null = null;
+
+// Lazily-populated cache of a file's split game strings, filled only when a
+// game from that file is actually parsed (drill / live index build). Typical
+// usage touches few files, so this stays far smaller than the whole corpus.
+const fileGamesCache = new Map<string, string[]>();
+
+function readGamesFromFile(file: string): string[] {
+  const hit = fileGamesCache.get(file);
+  if (hit) return hit;
+  // Normalize line endings — some hand-downloaded files use CRLF.
+  const content = fs.readFileSync(path.join(DATA_DIR, file), 'utf-8').replace(/\r\n/g, '\n');
+  const games = splitGames(content);
+  fileGamesCache.set(file, games);
+  return games;
+}
+
+/** Re-read the raw PGN text for a game from its source file. */
+function loadPgnForRaw(raw: RawGame): string | null {
+  const games = readGamesFromFile(raw._file);
+  return games[raw._idx] ?? null;
+}
 
 // Fully-parsed games (moves + uci), parsed lazily on demand and cached:
 const parsedById = new Map<string, MasterGame>();
@@ -124,7 +148,7 @@ function collectionFromFile(file: string): { key: string; label: string } {
 }
 
 function rawToSummary(raw: RawGame): MasterGameSummary {
-  const { pgn, ...summary } = raw;
+  const { _file, _idx, ...summary } = raw;
   return summary;
 }
 
@@ -172,7 +196,11 @@ function ensureMetadata(): void {
     labels.set(key, label);
     // Normalize line endings — some hand-downloaded files use CRLF.
     const content = fs.readFileSync(path.join(DATA_DIR, file), 'utf-8').replace(/\r\n/g, '\n');
-    for (const pgn of splitGames(content)) {
+    // `_idx` indexes into this same split array, so a later on-demand read via
+    // readGamesFromFile() (which uses the identical transform) lines up exactly.
+    const gamesInFile = splitGames(content);
+    for (let idx = 0; idx < gamesInFile.length; idx++) {
+      const pgn = gamesInFile[idx];
       const result = (header(pgn, 'Result') || '*') as GameResult;
       if (!VALID_RESULTS.has(result)) continue;
       const plies = countPlies(pgn);
@@ -199,7 +227,8 @@ function ensureMetadata(): void {
         plies,
         collectionKey: key,
         collection: label,
-        pgn,
+        _file: file,
+        _idx: idx,
       };
       rawById!.set(id, raw);
       if (!rawByCollection!.has(key)) rawByCollection!.set(key, []);
@@ -234,8 +263,11 @@ function parseRaw(raw: RawGame): MasterGame | null {
   const cached = parsedById.get(raw.id);
   if (cached) return cached;
 
+  const pgn = loadPgnForRaw(raw);
+  if (pgn === null) return null;
+
   const chess = new Chess();
-  try { chess.loadPgn(raw.pgn); } catch { return null; }
+  try { chess.loadPgn(pgn); } catch { return null; }
   const verbose = chess.history({ verbose: true });
   if (verbose.length === 0) return null;
 
@@ -256,11 +288,81 @@ function parseRaw(raw: RawGame): MasterGame | null {
 
 let indexBuilding: Promise<void> | null = null;
 
+// Prebuilt explorer index, generated at build time by
+// scripts/build-explorer-index.mjs so the (CPU-heavy) chess.js parse of the
+// whole corpus doesn't run on every server cold start.
+const INDEX_FILE = path.join(DATA_DIR, 'explorer-index.json');
+const INDEX_VERSION = 1;
+
+interface SerializedIndex {
+  v: number;
+  // [positionKey, gameIds, [uci, san, gameCount, whiteWins, draws, blackWins][]]
+  positions: Array<[string, string[], Array<[string, string, number, number, number, number]>]>;
+}
+
+function serializeIndex(index: Map<string, PositionEntry>): string {
+  const positions: SerializedIndex['positions'] = [];
+  for (const [key, entry] of index) {
+    const moves: Array<[string, string, number, number, number, number]> = [];
+    for (const m of entry.moves.values()) {
+      moves.push([m.uci, m.san, m.gameCount, m.whiteWins, m.draws, m.blackWins]);
+    }
+    positions.push([key, entry.gameIds, moves]);
+  }
+  return JSON.stringify({ v: INDEX_VERSION, positions } satisfies SerializedIndex);
+}
+
+function deserializeIndex(json: string): Map<string, PositionEntry> {
+  const data = JSON.parse(json) as SerializedIndex;
+  if (data.v !== INDEX_VERSION) throw new Error(`index version ${data.v} != ${INDEX_VERSION}`);
+  const index = new Map<string, PositionEntry>();
+  for (const [key, gameIds, moves] of data.positions) {
+    const moveMap = new Map<string, MoveStat>();
+    for (const [uci, san, gameCount, whiteWins, draws, blackWins] of moves) {
+      moveMap.set(uci, { san, uci, gameCount, whiteWins, draws, blackWins });
+    }
+    index.set(key, { moves: moveMap, gameIds });
+  }
+  return index;
+}
+
+/** Load the prebuilt index artifact if present. Returns true on success. */
+function loadIndexFromDisk(): boolean {
+  try {
+    if (!fs.existsSync(INDEX_FILE)) return false;
+    positionIndex = deserializeIndex(fs.readFileSync(INDEX_FILE, 'utf-8'));
+    console.log(`[master-games] Loaded prebuilt explorer index (${positionIndex.size} positions) from ${INDEX_FILE}.`);
+    return true;
+  } catch (err) {
+    console.warn('[master-games] Failed to load prebuilt explorer index, will build live:', err);
+    return false;
+  }
+}
+
 function ensureIndex(): Promise<void> {
   if (positionIndex) return Promise.resolve();
   if (indexBuilding) return indexBuilding;
-  indexBuilding = buildIndexAsync();
+  indexBuilding = (async () => {
+    ensureMetadata();
+    // Fast path: use the prebuilt artifact shipped with the deploy.
+    if (loadIndexFromDisk()) return;
+    // Fallback (e.g. dev without a prebuilt file): build it live, chunked.
+    await buildIndexAsync();
+  })();
   return indexBuilding;
+}
+
+/**
+ * Build the explorer index and write it to disk as a JSON artifact.
+ * Invoked at build time (scripts/build-explorer-index.mjs), not at runtime.
+ * Returns the path written.
+ */
+export async function buildExplorerIndexToFile(outPath: string = INDEX_FILE): Promise<string> {
+  ensureMetadata();
+  positionIndex = null; // force a fresh build even if one was already loaded
+  await buildIndexAsync();
+  fs.writeFileSync(outPath, serializeIndex(positionIndex!));
+  return outPath;
 }
 
 async function buildIndexAsync(): Promise<void> {

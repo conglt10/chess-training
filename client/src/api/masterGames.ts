@@ -1,12 +1,16 @@
 import { ExplorerResult, MasterGame, Collection, CollectionGamesResponse } from '../types';
+import { cached } from './cache';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 
 export async function fetchCollections(): Promise<Collection[]> {
-  const res = await fetch(`${BASE}/master-games/collections`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  const data = await res.json();
-  return data.collections;
+  // Static for the session — cache so re-entering Masters mode doesn't refetch.
+  return cached('master-games/collections', async () => {
+    const res = await fetch(`${BASE}/master-games/collections`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    return data.collections as Collection[];
+  });
 }
 
 export async function fetchCollectionGames(params: {

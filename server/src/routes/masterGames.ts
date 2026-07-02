@@ -3,6 +3,15 @@ import { getExplorer, getMasterGameById, getCollections, getGamesByCollection } 
 
 const router = Router();
 
+// The master-games corpus is static between deploys, so allow browsers/CDN to
+// cache GET responses (collections, game lists, explorer, single games).
+router.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  }
+  next();
+});
+
 // ── GET /api/master-games/collections ──────────────────────────────────────
 // Returns the list of player/source collections with game counts.
 // ─────────────────────────────────────────────────────────────────────────────

@@ -104,7 +104,10 @@ export class StockfishEngine {
   private bestMove = '';
   private currentMateIn: number | null = null;
   private searchRunning = false;
+  private cancelRequested = false;
   private onInfoCb: ((depth: number, score: number) => void) | undefined;
+  private safetyTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
   private resolveAnalysis: ((r: AnalysisResult) => void) | null = null;
   private rejectAnalysis: ((e: Error) => void) | null = null;
@@ -171,26 +174,42 @@ export class StockfishEngine {
     if (line.startsWith('bestmove')) {
       const parts = line.split(' ');
       this.bestMove = parts[1] ?? '';
-      this.searchRunning = false;
-      this.deliverResult();
+      // The engine has now fully finished this search (whether it ran to
+      // completion or was stopped). Only here is the underlying WASM instance
+      // guaranteed idle and safe to reuse — so we settle the promise (which
+      // triggers the pool to release the engine) at this point, never earlier.
+      this.finish(this.cancelRequested ? 'cancelled' : 'done');
     }
   }
 
-  private deliverResult() {
-    if (!this.resolveAnalysis) return;
+  /**
+   * Settle the in-flight search exactly once, clearing timers and per-search
+   * state. `cancelled` rejects; `done` resolves with the accumulated result.
+   */
+  private finish(kind: 'done' | 'cancelled') {
+    if (this.safetyTimer)   { clearTimeout(this.safetyTimer);   this.safetyTimer = null; }
+    if (this.watchdogTimer) { clearTimeout(this.watchdogTimer); this.watchdogTimer = null; }
+
+    const resolve = this.resolveAnalysis;
+    const reject  = this.rejectAnalysis;
+    this.resolveAnalysis = null;
+    this.rejectAnalysis = null;
+    this.onInfoCb = undefined;
+    this.searchRunning = false;
+    this.cancelRequested = false;
+
+    if (kind === 'cancelled') {
+      reject?.(new Error('cancelled'));
+      return;
+    }
+    if (!resolve) return;
 
     const pvs: PV[] = [];
     this.pvAccumulator.forEach(pv => {
       pvs.push({ rank: pv.rank, score: pv.score, moves: pv.moves });
     });
     pvs.sort((a, b) => a.rank - b.rank);
-
-    const result: AnalysisResult = { bestMove: this.bestMove, mateIn: this.currentMateIn, pvs };
-    const resolve = this.resolveAnalysis;
-    this.resolveAnalysis = null;
-    this.rejectAnalysis = null;
-    this.onInfoCb = undefined;
-    resolve(result);
+    resolve({ bestMove: this.bestMove, mateIn: this.currentMateIn, pvs });
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -212,6 +231,7 @@ export class StockfishEngine {
     this.bestMove = '';
     this.currentMateIn = null;
     this.onInfoCb = opts.onInfo;
+    this.cancelRequested = false;
 
     engine.sendCommand(`setoption name Skill Level value ${opts.skillLevel}`);
     engine.sendCommand(`setoption name MultiPV value ${opts.multiPV ?? 1}`);
@@ -224,33 +244,32 @@ export class StockfishEngine {
       : `go depth ${opts.depth}`;
     engine.sendCommand(goCmd);
 
-    let cancelFn!: () => void;
-
     const promise = new Promise<AnalysisResult>((resolve, reject) => {
       this.resolveAnalysis = resolve;
       this.rejectAnalysis = reject;
-
-      cancelFn = () => {
-        if (!this.searchRunning) return;
-        this.searchRunning = false;
-        engine.sendCommand('stop');
-        this.resolveAnalysis = null;
-        this.rejectAnalysis = null;
-        this.onInfoCb = undefined;
-        reject(new Error('cancelled'));
-      };
-
-      // Safety timeout: stops engine slightly after the allotted budget
-      const timeout = opts.movetime ? opts.movetime + 800 : 12_000;
-      const timer = setTimeout(() => {
-        if (this.searchRunning) engine.sendCommand('stop');
-      }, timeout);
-
-      // Wrap resolve to clear the safety timer when the engine finishes normally
-      const origResolve = this.resolveAnalysis!;
-      this.resolveAnalysis = (r) => { clearTimeout(timer); origResolve(r); };
     });
 
-    return { promise, cancel: cancelFn };
+    // Safety: if a search overruns its budget, ask the engine to stop. The
+    // `bestmove` that follows settles the promise via handleLine → finish().
+    const budget = opts.movetime ? opts.movetime + 1500 : 15_000;
+    this.safetyTimer = setTimeout(() => {
+      if (this.searchRunning) engine.sendCommand('stop');
+    }, budget);
+
+    const cancel = () => {
+      if (!this.searchRunning || this.cancelRequested) return;
+      this.cancelRequested = true;
+      engine.sendCommand('stop');
+      // Deliberately do NOT settle/release here. We wait for the engine's
+      // `bestmove` (handled in handleLine → finish) so the WASM instance is
+      // fully idle before the pool reuses it — sending new commands into an
+      // engine that is still unwinding an ASYNCIFY search corrupts its memory.
+      // Watchdog only in the (rare) case `bestmove` never arrives after stop.
+      this.watchdogTimer = setTimeout(() => {
+        if (this.searchRunning) this.finish('cancelled');
+      }, 3000);
+    };
+
+    return { promise, cancel };
   }
 }
