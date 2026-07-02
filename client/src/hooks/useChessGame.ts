@@ -1,14 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
-
-const moveSound = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3');
-const captureSound = new Audio('https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Capture.mp3');
-
-function playSound(isCapture = false) {
-  const sound = isCapture ? captureSound : moveSound;
-  sound.currentTime = 0;
-  sound.play().catch(() => {});
-}
+import { playMoveSound as playSound } from '../utils/sound';
 
 interface UseChessGameProps {
   moves: string[];
