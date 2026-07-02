@@ -2,38 +2,41 @@
    Chess Opening Trainer — Global Design System
    ======================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ---------- CSS Variables ---------- */
 :root {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Colors */
-  --bg-base: #0b0f19;
-  --bg-surface: #111625;
-  --bg-elevated: #171e32;
-  --bg-card: #131929;
-  --bg-hover: #1e263f;
+  /* Colors - Default Dark Mode (Rich Carbon Slate) */
+  --bg-base: #161512;
+  --bg-surface: #21201d;
+  --bg-elevated: #2d2b27;
+  --bg-card: #262421;
+  --bg-hover: #383531;
+  --bg-header: rgba(33, 32, 29, 0.85);
 
-  --border: rgba(99, 102, 241, 0.08);
-  --border-strong: rgba(99, 102, 241, 0.16);
+  --border: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.1);
 
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #bababa;
+  --text-muted: #7d7d7d;
 
-  --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.22);
-  --accent-hover: #818cf8;
-  --accent-dim: rgba(99, 102, 241, 0.12);
+  /* Accent: Chess.com Brand Green */
+  --accent: #81b64c;
+  --accent-glow: rgba(129, 182, 76, 0.22);
+  --accent-hover: #95d054;
+  --accent-dim: rgba(129, 182, 76, 0.12);
 
-  --success: #4ade80;
-  --success-bg: rgba(74, 222, 128, 0.12);
-  --danger: #f87171;
-  --danger-bg: rgba(248, 113, 113, 0.12);
-  --warning: #fbbf24;
-  --warning-bg: rgba(251, 191, 36, 0.12);
+  --success: #81b64c;
+  --success-bg: rgba(129, 182, 76, 0.12);
+  --danger: #fa413c;
+  --danger-bg: rgba(250, 65, 60, 0.12);
+  --warning: #f5a623;
+  --warning-bg: rgba(245, 166, 35, 0.12);
 
   --gold: #f5a623;
   --gold-dim: rgba(245, 166, 35, 0.15);
@@ -44,44 +47,44 @@
   --radius-xl: 24px;
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-md: 0 6px 20px rgba(0,0,0,0.5);
+  --shadow-lg: 0 10px 32px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 24px var(--accent-glow);
 
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Board themes */
-  --board-light: #f0d9b5;
-  --board-dark: #b58863;
-  --board-highlight: rgba(255, 255, 0, 0.4);
+  /* Board themes (Default: Chess.com Green/Light Buff) */
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+  --board-highlight: rgba(247, 247, 105, 0.5);
 }
 
 .dark-mode {
-  --bg-base: #0b0f19;
-  --bg-surface: #111625;
-  --bg-elevated: #171e32;
-  --bg-card: #131929;
-  --bg-hover: #1e263f;
-  --bg-header: rgba(11, 15, 25, 0.85);
-  --border: rgba(99, 102, 241, 0.08);
-  --border-strong: rgba(99, 102, 241, 0.16);
+  --bg-base: #161512;
+  --bg-surface: #21201d;
+  --bg-elevated: #2d2b27;
+  --bg-card: #262421;
+  --bg-hover: #383531;
+  --bg-header: rgba(33, 32, 29, 0.85);
+  --border: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.1);
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #bababa;
+  --text-muted: #7d7d7d;
 }
 
 .light-mode {
-  --bg-base: #f8f9fc;
+  --bg-base: #edebe9;
   --bg-surface: #ffffff;
-  --bg-elevated: #f1f3f9;
+  --bg-elevated: #f3f3f3;
   --bg-card: #ffffff;
-  --bg-hover: #e8ebf5;
-  --bg-header: rgba(248, 249, 252, 0.85);
+  --bg-hover: #ecebeb;
+  --bg-header: rgba(255, 255, 255, 0.85);
   --border: rgba(0, 0, 0, 0.06);
   --border-strong: rgba(0, 0, 0, 0.12);
-  --text-primary: #1a1d23;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-primary: #21201d;
+  --text-secondary: #555555;
+  --text-muted: #999999;
 }
 
 /* Board theme overrides */
@@ -106,8 +109,8 @@
   --board-dark: #5b85a4;
 }
 [data-board-theme="walnut"] {
-  --board-light: #d4a96a;
-  --board-dark: #6b3a1f;
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
 }
 [data-board-theme="maple"] {
   --board-light: #f2c98a;
@@ -184,7 +187,7 @@ body {
 .badge-accent {
   background: var(--accent-dim);
   color: var(--accent);
-  border: 1px solid rgba(108,138,255,0.25);
+  border: 1px solid rgba(129, 182, 76, 0.25);
 }
 
 .badge-gold {
@@ -251,7 +254,7 @@ body {
 /* ---------- Toast / Alert ---------- */
 .toast {
   position: fixed;
-  top: 80px;
+  top: 24px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -330,4 +333,55 @@ body {
   padding: 60px 20px;
   color: var(--text-secondary);
   flex: 1;
+}
+
+/* ---------- App Layout Wrapper ---------- */
+.app-container {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-base);
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Ensures flex child doesn't overflow parent */
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .app-main {
+    height: calc(100vh - 56px - 60px); /* 56px top bar, 60px bottom nav */
+    overflow-y: auto;
+  }
+  .toast {
+    top: 68px;
+  }
+}
+
+/* ---------- Shared Page Headers ---------- */
+.page-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+
+.page-hero-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 560px;
 }

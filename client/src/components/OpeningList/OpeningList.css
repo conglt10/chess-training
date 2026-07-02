@@ -1,21 +1,22 @@
 .opening-list-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  height: 100%;
   overflow: hidden;
 }
 
 .opening-list-hero {
-  padding: 10px 32px 32px;
-  background: linear-gradient(180deg, rgba(108, 138, 255, 0.06) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border);
+  padding: 24px 32px 32px;
+  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .opening-list-hero-title {
-  font-size: 32px;
+  font-family: var(--font-display);
+  font-size: 36px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #fff 30%, var(--accent));
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -149,7 +150,7 @@
 .opening-group-letter {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;

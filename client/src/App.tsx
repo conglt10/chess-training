@@ -21,10 +21,10 @@ export default function App() {
   const { theme, setBoardTheme, setPieceTheme, setAppMode } = useTheme();
 
   return (
-    <>
+    <div className="app-container">
       <Header onShowThemes={() => setShowThemePanel(true)} />
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="app-main">
         <Routes>
           <Route path="/" element={<Navigate to="/repertoire" replace />} />
           <Route path="/repertoire" element={<OpeningList />} />
@@ -60,6 +60,6 @@ export default function App() {
           onClose={() => setShowThemePanel(false)}
         />
       )}
-    </>
+    </div>
   );
 }

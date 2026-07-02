@@ -1,14 +1,14 @@
 .theory-view {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  height: 100%;
   overflow: hidden;
 }
 
 .theory-top {
   padding: 20px 32px 16px;
-  background: linear-gradient(180deg, rgba(108,138,255,0.05) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--accent-dim) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
 }
 
@@ -30,7 +30,8 @@
 }
 
 .theory-title {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-primary);
