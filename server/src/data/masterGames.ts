@@ -14,7 +14,15 @@ import { getAllOpenings } from './openings';
 
 // Local PGN corpus — populated by `npm run download-master-games`
 // (Lichess Elite) and `npm run download-legend-games` (per-champion files).
-const DATA_DIR = path.join(__dirname, 'master-games');
+const DATA_DIR = (() => {
+  const p1 = path.join(__dirname, 'master-games');
+  if (fs.existsSync(p1)) return p1;
+  const p2 = path.join(__dirname, '..', '..', 'src', 'data', 'master-games');
+  if (fs.existsSync(p2)) return p2;
+  const p3 = path.join(process.cwd(), 'src', 'data', 'master-games');
+  if (fs.existsSync(p3)) return p3;
+  return p1; // default fallback
+})();
 
 // How deep into each game we index positions (plies = half-moves).
 // 40 plies = 20 moves per side, plenty for an opening explorer.

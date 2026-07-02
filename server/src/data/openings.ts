@@ -3,7 +3,15 @@ import * as path from 'path';
 import { Opening } from '../types';
 
 // Local TSV files — populated by running `npm run download-tsv`
-const TSV_DIR = path.join(__dirname, 'tsv');
+const TSV_DIR = (() => {
+  const p1 = path.join(__dirname, 'tsv');
+  if (fs.existsSync(p1)) return p1;
+  const p2 = path.join(__dirname, '..', '..', 'src', 'data', 'tsv');
+  if (fs.existsSync(p2)) return p2;
+  const p3 = path.join(process.cwd(), 'src', 'data', 'tsv');
+  if (fs.existsSync(p3)) return p3;
+  return p1; // default fallback
+})();
 const TSV_FILES = ['a', 'b', 'c', 'd', 'e'];
 
 // ── In-memory cache ──────────────────────────────────────────────────────────
