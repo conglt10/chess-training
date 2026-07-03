@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getAllOpenings, getOpeningsByFamilies, getFamilySummaries, identifyOpening } from '../data/openings';
+import { getAllOpenings, getOpeningsByFamilies, getFamilyCounts, getFamilySummaries, identifyOpening } from '../data/openings';
 import type { FirstMoveTab } from '../data/openings';
 import { Opening } from '../types';
 
@@ -34,6 +34,8 @@ router.get('/', (req: Request, res: Response) => {
     // families fast-path allows larger page to get all results in one shot
     const maxPageSize = familiesParam ? 5000 : 100;
     const pageSize = Math.min(maxPageSize, Math.max(1, parseInt(req.query.pageSize as string || '50', 10)));
+    const sortBy = (req.query.sortBy as string) === 'moves' ? 'moves' : null;
+    const sortDir = (req.query.sortDir as string) === 'asc' ? 'asc' : 'desc';
 
     let filtered: Opening[];
 
@@ -75,6 +77,11 @@ router.get('/', (req: Request, res: Response) => {
       }
     }
 
+    if (sortBy === 'moves') {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      filtered = [...filtered].sort((a, b) => dir * (a.moves.length - b.moves.length));
+    }
+
     const total = filtered.length;
     const start = (page - 1) * pageSize;
     const paginated = filtered.slice(start, start + pageSize);
@@ -114,6 +121,23 @@ router.get('/families', (_req: Request, res: Response) => {
   } catch (err) {
     console.error('[GET /api/openings/families]', err);
     res.status(500).json({ error: 'Failed to load families' });
+  }
+});
+
+// ── GET /api/openings/family-counts?families=a,b,c ────────────────────────────
+// Parent-only data for list views: the variation count per family, without
+// shipping any variations. Response: { counts: [{ family, count }] }
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/family-counts', (req: Request, res: Response) => {
+  try {
+    const familiesParam = (req.query.families as string || '').trim();
+    const families = familiesParam
+      ? familiesParam.split(',').map(f => f.trim()).filter(Boolean)
+      : [];
+    res.json({ counts: getFamilyCounts(families) });
+  } catch (err) {
+    console.error('[GET /api/openings/family-counts]', err);
+    res.status(500).json({ error: 'Failed to load family counts' });
   }
 });
 

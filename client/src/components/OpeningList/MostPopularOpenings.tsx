@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import './MostPopularOpenings.css';
 import { Opening } from '../../types';
-import { fetchOpeningsByFamilies } from '../../api/openings';
+import { fetchFamilyCounts } from '../../api/openings';
 
 interface MostPopularOpeningsProps {
   onSelect: (opening: Opening) => void;
@@ -98,37 +98,31 @@ const CURATED: CuratedGroup[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Per-group opening cache: groupId → family → Opening[]
-type GroupCache = Record<string, Record<string, Opening[]>>;
+// Per-group variation counts: groupId → familyLower → count
+type GroupCounts = Record<string, Record<string, number>>;
 
 export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPopularOpeningsProps) {
   const [activeGroup, setActiveGroup] = useState<string>('e4');
-  // Each group loads lazily on first visit
-  const [groupCache, setGroupCache] = useState<GroupCache>({});
+  // Each group loads its variation counts lazily on first visit. This is the
+  // "parent-only" list payload — we do NOT fetch the variations themselves
+  // here; those are paginated on the family detail page.
+  const [groupCounts, setGroupCounts] = useState<GroupCounts>({});
   const [loadingGroup, setLoadingGroup] = useState<string | null>('e4');
 
   const currentGroup = CURATED.find(g => g.id === activeGroup)!;
 
-  // Fetch the current group's families the first time it is selected
+  // Fetch the current group's family counts the first time it is selected
   useEffect(() => {
-    if (groupCache[activeGroup]) return;       // already loaded
+    if (groupCounts[activeGroup]) return;       // already loaded
     let cancelled = false;
     setLoadingGroup(activeGroup);
 
     const families = CURATED.find(g => g.id === activeGroup)!.openings.map(e => e.family);
 
-    fetchOpeningsByFamilies(families)
-      .then(openings => {
+    fetchFamilyCounts(families)
+      .then(counts => {
         if (cancelled) return;
-        // Build family index for this group
-        const index: Record<string, Opening[]> = {};
-        for (const o of openings) {
-          // The server now returns the family field. We use it to group.
-          const key = o.family.toLowerCase().trim();
-          if (!index[key]) index[key] = [];
-          index[key].push(o);
-        }
-        setGroupCache(prev => ({ ...prev, [activeGroup]: index }));
+        setGroupCounts(prev => ({ ...prev, [activeGroup]: counts }));
       })
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoadingGroup(null); });
@@ -136,18 +130,15 @@ export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPo
     return () => { cancelled = true; };
   }, [activeGroup]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset expanded family when switching groups
-  useEffect(() => { }, [activeGroup]);
-
-  const dbByFamily = useMemo(
-    () => groupCache[activeGroup] ?? {},
-    [groupCache, activeGroup]
+  const countByFamily = useMemo(
+    () => groupCounts[activeGroup] ?? {},
+    [groupCounts, activeGroup]
   );
 
-  const loading = loadingGroup === activeGroup && !groupCache[activeGroup];
+  const loading = loadingGroup === activeGroup && !groupCounts[activeGroup];
 
-  function getVariations(family: string): Opening[] {
-    return dbByFamily[family.toLowerCase()] ?? [];
+  function getCount(family: string): number {
+    return countByFamily[family.toLowerCase()] ?? 0;
   }
 
   return (
@@ -224,8 +215,8 @@ export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPo
         ) : (
           <div className="mpo-list">
             {currentGroup.openings.map((entry, idx) => {
-              const variations = getVariations(entry.family);
-              const hasVariations = variations.length > 0;
+              const count = getCount(entry.family);
+              const hasVariations = count > 0;
 
               return (
                 <div
@@ -236,7 +227,7 @@ export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPo
                   <button
                     id={`mpo-entry-${idx}`}
                     className="mpo-entry-header"
-                    onClick={() => hasVariations && onFamilySelect(entry.family, variations, currentGroup.color)}
+                    onClick={() => hasVariations && onFamilySelect(entry.family, [], currentGroup.color)}
                   >
                     {/* Rank number */}
                     <span className="mpo-entry-rank" style={{ color: currentGroup.color }}>
@@ -262,7 +253,7 @@ export default function MostPopularOpenings({ onSelect, onFamilySelect }: MostPo
                     {/* Variation count pill */}
                     {hasVariations && (
                       <span className="mpo-entry-varcount">
-                        {variations.length} var.
+                        {count} var.
                       </span>
                     )}
 

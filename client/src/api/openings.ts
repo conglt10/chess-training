@@ -9,6 +9,8 @@ export async function fetchOpenings(params: {
   family?: string;
   /** Comma-separated exact family names — uses server fast-path (no full load) */
   families?: string;
+  sortBy?: 'moves';
+  sortDir?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }): Promise<OpeningsResponse> {
@@ -17,12 +19,32 @@ export async function fetchOpenings(params: {
   if (params.eco) q.set('eco', params.eco);
   if (params.family) q.set('family', params.family);
   if (params.families) q.set('families', params.families);
+  if (params.sortBy) q.set('sortBy', params.sortBy);
+  if (params.sortDir) q.set('sortDir', params.sortDir);
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
 
   const res = await fetch(`${BASE}/openings?${q.toString()}`);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
+}
+
+/**
+ * Parent-only list data: the variation count for each family, without fetching
+ * any variations. Returns a map keyed by lowercased family name.
+ */
+export async function fetchFamilyCounts(families: string[]): Promise<Record<string, number>> {
+  if (families.length === 0) return {};
+  const key = families.join(',');
+  return cached(`openings/family-counts:${key}`, async () => {
+    const q = new URLSearchParams({ families: key });
+    const res = await fetch(`${BASE}/openings/family-counts?${q.toString()}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = (await res.json()) as { counts: Array<{ family: string; count: number }> };
+    const map: Record<string, number> = {};
+    for (const c of data.counts) map[c.family.toLowerCase()] = c.count;
+    return map;
+  });
 }
 
 /**

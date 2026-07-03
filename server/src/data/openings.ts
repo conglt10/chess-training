@@ -125,6 +125,19 @@ export function getOpeningsByFamilies(families: string[]): Opening[] {
   return result;
 }
 
+/**
+ * Returns just the variation count for each requested family — the "parent"
+ * data for a list view, without shipping every variation. Order matches the
+ * input; unknown families return count 0.
+ */
+export function getFamilyCounts(families: string[]): Array<{ family: string; count: number }> {
+  getAllOpenings(); // warm cache + familyIndex
+  return families.map(name => ({
+    family: name,
+    count: (familyIndex!.get(name.toLowerCase()) ?? []).length,
+  }));
+}
+
 // ── First-move classifier ─────────────────────────────────────────────────────
 export type FirstMoveTab = 'e4' | 'd4' | 'other';
 

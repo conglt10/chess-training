@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Opening } from '../../types';
+import { fetchOpenings } from '../../api/openings';
 import { openingPath } from '../../paths';
 import './FamilyVariationsView.css';
 
 interface FamilyVariationsViewProps {
   family: string;
-  variations: Opening[];
   color: string;
   onBack: () => void;
 }
@@ -19,26 +19,56 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'moves-asc', label: 'Fewest moves' },
 ];
 
+const PAGE_SIZE = 24;
+
 export default function FamilyVariationsView({
   family,
-  variations,
   color,
   onBack,
 }: FamilyVariationsViewProps) {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('default');
+  const [page, setPage] = useState(1);
 
-  const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let list = q
-      ? variations.filter(o => o.name.toLowerCase().includes(q) || o.eco.toLowerCase().includes(q))
-      : variations;
-    if (sortKey !== 'default') {
-      const dir = sortKey === 'moves-asc' ? 1 : -1;
-      list = [...list].sort((a, b) => dir * (a.moves.length - b.moves.length));
-    }
-    return list;
-  }, [variations, search, sortKey]);
+  const [variations, setVariations] = useState<Opening[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Reset when the family changes
+  useEffect(() => {
+    setSearch(''); setDebouncedSearch(''); setSortKey('default'); setPage(1);
+  }, [family]);
+
+  // Debounce the search box
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, sortKey]);
+
+  // Fetch the current page of variations (server-side search + sort + paging).
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const sortBy = sortKey === 'default' ? undefined : 'moves';
+    const sortDir = sortKey === 'moves-asc' ? 'asc' : 'desc';
+    fetchOpenings({
+      families: family,
+      search: debouncedSearch || undefined,
+      sortBy,
+      sortDir,
+      page,
+      pageSize: PAGE_SIZE,
+    })
+      .then(res => { if (!cancelled) { setVariations(res.openings); setTotal(res.total); } })
+      .catch(() => { if (!cancelled) { setVariations([]); setTotal(0); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [family, debouncedSearch, sortKey, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="fvv-container">
@@ -50,13 +80,13 @@ export default function FamilyVariationsView({
         <div className="fvv-header-info">
           <h2 className="fvv-title">{family}</h2>
           <p className="fvv-subtitle">
-            {search.trim()
-              ? `${shown.length} of ${variations.length} variations`
-              : `${variations.length} variation${variations.length !== 1 ? 's' : ''} — click any to study`}
+            {debouncedSearch
+              ? `${total} matching variation${total !== 1 ? 's' : ''}`
+              : `${total} variation${total !== 1 ? 's' : ''} — click any to study`}
           </p>
         </div>
         <div className="fvv-count-badge" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color, borderColor: `color-mix(in srgb, ${color} 40%, transparent)` }}>
-          {variations.length}
+          {total}
         </div>
       </div>
 
@@ -78,11 +108,15 @@ export default function FamilyVariationsView({
 
       {/* Grid of variation cards */}
       <div className="fvv-body">
-        {shown.length === 0 ? (
-          <div className="fvv-empty">No variations match “{search.trim()}”.</div>
+        {loading && variations.length === 0 ? (
+          <div className="fvv-empty">Loading variations…</div>
+        ) : variations.length === 0 ? (
+          <div className="fvv-empty">
+            {debouncedSearch ? `No variations match “${debouncedSearch}”.` : 'No variations found.'}
+          </div>
         ) : (
         <div className="fvv-grid">
-          {shown.map((opening, i) => (
+          {variations.map((opening, i) => (
             <Link
               key={`${opening.eco}-${i}`}
               id={`fvv-card-${opening.eco}-${i}`}
@@ -111,6 +145,17 @@ export default function FamilyVariationsView({
         </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="fvv-pager">
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(1)} disabled={page <= 1}>«</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>‹ Prev</button>
+          <span className="fvv-pager-info">Page <strong>{page}</strong> of {totalPages}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next ›</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>»</button>
+        </div>
+      )}
     </div>
   );
 }
