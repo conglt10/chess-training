@@ -182,3 +182,18 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
+
+.fvv-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 8px;
+  flex-wrap: wrap;
+}
+
+.fvv-pager-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 0 6px;
+}
