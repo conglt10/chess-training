@@ -29,5 +29,14 @@
     "fflate": "^0.8.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
+  },
+  "comment": "@types/compression depends on '@types/express: *'. On a fresh install with no lockfile (e.g. Render's yarn), that '*' resolves to @types/express@5, which clashes with our v4 and breaks tsc (app.use(compression()) overload). Pin the Express types to v4 everywhere so both yarn (resolutions) and npm (overrides) keep a single consistent version.",
+  "resolutions": {
+    "@types/express": "4.17.25",
+    "@types/express-serve-static-core": "4.19.8"
+  },
+  "overrides": {
+    "@types/express": "4.17.25",
+    "@types/express-serve-static-core": "4.19.8"
   }
 }
