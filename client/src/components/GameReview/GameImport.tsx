@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { importGameFromUrl } from '../../api/importGame';
+import { loadGameFromUrl } from '../../review/gameLoader';
+import { fingerprintForInput } from '../../review/cache/analysisCache';
 
 interface Props {
   /** Called with a raw PGN string once the user picks a game to review. */
-  onSubmit: (pgn: string) => void;
+  onSubmit: (pgn: string, cacheKey?: string) => void;
   /** Error bubbled up from the parent (e.g. PGN parse / analysis errors). */
   error?: string | null;
   busy?: boolean;
@@ -32,12 +33,13 @@ export default function GameImport({ onSubmit, error, busy }: Props) {
 
   const handleUrl = async () => {
     const trimmed = url.trim();
-    if (!trimmed) { setLocalError('Paste a chess.com or lichess game link first.'); return; }
+    if (!trimmed) { setLocalError('Paste a lichess game link first.'); return; }
     setLocalError(null);
     setUrlLoading(true);
     try {
-      const game = await importGameFromUrl(trimmed);
-      onSubmit(game.pgn);
+      // Frontend-only import: lichess is fetched directly in the browser.
+      const game = await loadGameFromUrl(trimmed);
+      onSubmit(game.pgn, fingerprintForInput(trimmed));
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : 'Could not import that link.');
     } finally {
@@ -48,7 +50,7 @@ export default function GameImport({ onSubmit, error, busy }: Props) {
   const handlePgn = () => {
     setLocalError(null);
     if (!pgn.trim()) { setLocalError('Paste a PGN first.'); return; }
-    onSubmit(pgn);
+    onSubmit(pgn, fingerprintForInput(pgn));
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,16 +73,17 @@ export default function GameImport({ onSubmit, error, busy }: Props) {
         <h2 className="review-import-title">🔍 Game Review</h2>
         <p className="review-import-sub">
           Import a game and get a chess.com-style report: every move classified, accuracy scores,
-          an evaluation graph, and coaching for each move.
+          an evaluation graph, and coaching for each move. Analysis runs entirely in your
+          browser — no game leaves your device.
         </p>
 
         {/* URL import */}
-        <label className="review-field-label">Paste a chess.com or lichess link</label>
+        <label className="review-field-label">Paste a lichess link</label>
         <div className="review-url-row">
           <input
             className="review-url-input"
             type="text"
-            placeholder="https://lichess.org/… or https://www.chess.com/game/live/…"
+            placeholder="https://lichess.org/…"
             value={url}
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleUrl(); }}
@@ -90,6 +93,9 @@ export default function GameImport({ onSubmit, error, busy }: Props) {
             {urlLoading ? 'Loading…' : 'Import'}
           </button>
         </div>
+        <p className="review-import-note">
+          Chess.com blocks direct browser imports — for chess.com games use Share → Get PGN and paste below.
+        </p>
 
         <div className="review-divider"><span>or paste PGN</span></div>
 

@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Stockfish review workers are plain `new Worker()` scripts served from
+  // public/ (self-contained Emscripten bundles) — no bundling needed.
+  worker: {
+    format: 'es',
+  },
+  assetsInclude: ['**/*.wasm'],
   server: {
     port: 5173,
     proxy: {

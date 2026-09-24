@@ -1,21 +1,18 @@
 /**
  * useGameReview.ts
  *
- * Runs a full-game Stockfish analysis for the Game Review feature and derives
- * everything chess.com shows: per-move classification, coach commentary,
- * centipawn evals (for the graph), accuracy %, and per-side move counts.
+ * Frontend-only full-game analysis for the Game Review feature (WhyBlunder
+ * spec): chess.js state precomputation → StockfishWorkerPool (two-phase
+ * search) → evaluation & diagnosis pipeline (win probability, ECO book
+ * filtering, tactical situation recognition) → interactive UI state.
  *
- * Analysis strategy: each position in the game (start … final) is evaluated
- * once with multi-PV. The eval AFTER a move equals the (negated) best eval of
- * the next position, so a single pass over N+1 positions yields both the
- * "before" and "after" evals for every move — no double analysis needed.
- * Positions are analyzed with a small concurrency pool that matches the
- * server's engine pool.
+ * Completed reviews persist in the client-side LRU `AnalysisCache`
+ * (`whyblunder_analysis_cache_v1`) — re-reviewing the same PGN or Lichess
+ * URL is instantaneous. No backend is involved.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
-import { getStockfishService } from '../utils/stockfishService';
 import type { ParsedGame } from '../utils/pgnImport';
 import {
   classifyMove, CLASSIFICATION_ORDER,
@@ -23,17 +20,18 @@ import {
 } from '../utils/moveClassifier';
 import { generateReviewComment, tipFor, type ReviewComment } from '../utils/reviewCommentator';
 import { cpToWinPercent, moveAccuracy, sideAccuracy, type AccuracyMove } from '../utils/winPercent';
-import { identifyOpening } from '../api/importGame';
+import { startPositionAnalysis, uciToSan } from '../review/browserAnalyzer';
+import { getReviewEnginePool } from '../review/engine/stockfishWorkerPool';
+import { identifyOpeningLocal, isBookPly } from '../review/openings/openingDetector';
+import { recognizeSituation } from '../review/tactics/situationRecognizer';
+import {
+  fingerprintPgn, getCachedReview, setCachedReview, type CachedMove,
+} from '../review/cache/analysisCache';
 
 // ── Tunables ───────────────────────────────────────────────────────────────────
 
-// Fixed depth (no movetime cap) → consistent evals, which the win%/cpLoss math
-// depends on. multiPV gives us the 2nd-best move for "Great"/"only-move" detection.
-const ANALYSIS = { skillLevel: 20, depth: 16, multiPV: 3 };
-const CONCURRENCY = 3;            // matches the server engine pool
-const EVAL_CLAMP = 1000;         // cp clamp for display/graph (±10 pawns)
-const CP_LOSS_CAP = 1000;        // cap centipawn loss so mate swings stay sane
-const SAC_PLY_WINDOW = 8;        // plies of the reply line to settle material over
+const CP_LOSS_CAP = 1000;         // cap centipawn loss so mate swings stay sane
+const SAC_PLY_WINDOW = 8;         // plies of the reply line to settle material over
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -62,15 +60,6 @@ export interface ReviewedMove {
 }
 
 export type ReviewPhase = 'idle' | 'analyzing' | 'done' | 'error';
-
-interface PositionEval {
-  scoreSTM: number;        // best move score, side-to-move perspective (cp)
-  score2STM: number | null; // 2nd-best score, same perspective (cp)
-  bestUci: string | null;
-  pv: string[];            // best line (UCI), used for sacrifice detection
-  mate: number | null;     // mate distance, side-to-move perspective
-  whiteEval: number;       // best eval, white perspective (cp, clamped)
-}
 
 export interface UseGameReviewState {
   phase: ReviewPhase;
@@ -146,37 +135,9 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function emptyCounts(): Record<Classification, number> {
   return {
-    brilliant: 0, great: 0, best: 0, excellent: 0, good: 0,
-    book: 0, inaccuracy: 0, mistake: 0, miss: 0, blunder: 0, forced: 0,
+    brilliant: 0, great: 0, best: 0,
+    book: 0, inaccuracy: 0, mistake: 0, blunder: 0,
   };
-}
-
-/** Run async tasks over `items` with bounded concurrency, reporting progress. */
-async function runPool<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>,
-  onProgress: (done: number) => void,
-  isCancelled: () => boolean,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  let done = 0;
-
-  async function runner() {
-    while (true) {
-      if (isCancelled()) return;
-      const i = next++;
-      if (i >= items.length) return;
-      results[i] = await worker(items[i], i);
-      done++;
-      onProgress(done);
-    }
-  }
-
-  const runners = Array.from({ length: Math.min(limit, items.length) }, runner);
-  await Promise.all(runners);
-  return results;
 }
 
 const EMPTY_STATE: UseGameReviewState = {
@@ -218,64 +179,68 @@ export function useGameReview() {
     setState(EMPTY_STATE);
   }, [cancelAll]);
 
-  const start = useCallback(async (game: ParsedGame) => {
+  const start = useCallback(async (game: ParsedGame, cacheKey?: string) => {
     cancelAll();
     cancelledRef.current = false;
 
     setState({ ...EMPTY_STATE, phase: 'analyzing', game });
 
+    // ── Cache lookup (LRU fingerprint) ──────────────────────────────────────
+    const key = cacheKey ?? fingerprintPgn(game.sanMoves.join(' '));
+    try {
+      const cached = getCachedReview(key);
+      if (cached) {
+        if (cancelledRef.current) return;
+        setState({
+          phase: 'done',
+          progress: 1,
+          error: null,
+          game,
+          moves: cached.moves as ReviewedMove[],
+          evalSeries: cached.evalSeries,
+          openingName: cached.openingName,
+          openingEco: cached.openingEco,
+          accuracy: cached.accuracy,
+          counts: cached.counts,
+          currentPly: cached.moves.length > 0 ? 0 : -1,
+        });
+        return;
+      }
+    } catch { /* cache read failure — analyze fresh */ }
+
     // Kick off opening identification in parallel with the engine analysis.
-    const openingPromise = identifyOpening(game.sanMoves).catch(() => null);
+    const openingPromise = identifyOpeningLocal(game.sanMoves).catch(() => null);
+    // Warm up the worker pool while the first positions queue.
+    try { getReviewEnginePool().warmUp(); } catch { /* noop */ }
 
     try {
-      const svc = getStockfishService();
-      await svc.waitReady();
-      if (cancelledRef.current) return;
-
       const fens = game.fens; // length = moves + 1
-      const total = fens.length;
 
-      // ── Analyze every position once ─────────────────────────────────────────
-      const positions = await runPool<string, PositionEval>(
-        fens,
-        CONCURRENCY,
-        async (fen) => {
-          const { promise, cancel } = svc.analyze(fen, ANALYSIS);
-          inflightCancels.current.push(cancel);
-          let res;
-          try {
-            res = await promise;
-          } catch {
-            // cancelled or engine error — treat as neutral
-            return { scoreSTM: 0, score2STM: null, bestUci: null, pv: [], mate: null, whiteEval: 0 };
-          }
-          const stm = sideToMove(fen);
-          const scoreSTM = res.pvs[0]?.score ?? 0;
-          const score2STM = res.pvs[1]?.score ?? null;
-          const pv = res.pvs[0]?.moves ?? [];
-          const bestUci = pv[0] ?? res.bestMove ?? null;
-          const whiteRaw = stm === 'w' ? scoreSTM : -scoreSTM;
-          return {
-            scoreSTM,
-            score2STM,
-            bestUci: bestUci && bestUci !== '(none)' ? bestUci : null,
-            pv,
-            mate: res.mateIn,
-            whiteEval: clamp(whiteRaw, -EVAL_CLAMP, EVAL_CLAMP),
-          };
-        },
-        (done) => setState(s => (s.phase === 'analyzing' ? { ...s, progress: done / total } : s)),
-        () => cancelledRef.current,
-      );
+      // ── Two-phase browser analysis (depth 18 pre-move, depth 16 refute) ──
+      const run = startPositionAnalysis(fens, game.uciMoves, (fraction) => {
+        setState(s => (s.phase === 'analyzing' ? { ...s, progress: fraction } : s));
+      });
+      inflightCancels.current.push(run.cancel);
+      let evals;
+      try {
+        evals = await run.promise;
+      } catch (err) {
+        if (cancelledRef.current) return;
+        throw err;
+      } finally {
+        inflightCancels.current = inflightCancels.current.filter(c => c !== run.cancel);
+      }
 
       if (cancelledRef.current) return;
 
       // ── Resolve opening for book detection ──────────────────────────────────
       const opening = await openingPromise;
-      const openingPly = opening?.ply ?? 0;
 
       // White-perspective win% for every position (for volatility weighting).
-      const winWhite = positions.map(p => cpToWinPercent(p.whiteEval));
+      const winWhite = [
+        cpToWinPercent(evals.pre[0]?.whiteEval ?? 0),
+        ...evals.post.map(p => cpToWinPercent(p.whiteEval)),
+      ];
 
       // ── Build per-move review data ───────────────────────────────────────────
       const moves: ReviewedMove[] = [];
@@ -284,8 +249,8 @@ export function useGameReview() {
       const accMoves: AccuracyMove[] = [];
 
       for (let i = 0; i < game.sanMoves.length; i++) {
-        const before = positions[i];
-        const after = positions[i + 1];
+        const before = evals.pre[i];
+        const after = evals.post[i];
         const fenBefore = fens[i];
         const fenAfter = fens[i + 1];
         const moverColor = sideToMove(fenBefore);
@@ -301,44 +266,37 @@ export function useGameReview() {
 
         // Best move (uci → san) at the position before the move
         const bestUci = before.bestUci;
-        let bestSan: string | null = null;
-        if (bestUci) {
-          try {
-            const c = new Chess(fenBefore);
-            const mv = c.move({
-              from: bestUci.slice(0, 2),
-              to: bestUci.slice(2, 4),
-              promotion: bestUci.length === 5 ? bestUci[4] : undefined,
-            });
-            bestSan = mv?.san ?? null;
-          } catch { bestSan = null; }
-        }
+        const bestSan = uciToSan(fenBefore, bestUci);
 
         const isBest = !!bestUci && bestUci.toLowerCase() === uci.toLowerCase();
 
-        // Forced (only legal move)?
+        // Only one legal move? (Great/Best per spec — no more 'forced' class)
         let isOnlyMove = false;
         try {
           isOnlyMove = new Chess(fenBefore).moves().length === 1;
         } catch { isOnlyMove = false; }
 
-        const isBookMove = i < openingPly;
+        const isBookMove = isBookPly(i, opening);
 
-        // 2nd-best gap (critical / only-good move detection)
+        // 2nd-best info (critical-move + brilliant gating)
         const secondBestGap = before.score2STM !== null
           ? Math.max(0, before.scoreSTM - before.score2STM)
           : 0;
+        const winSecondBest = before.score2STM !== null
+          ? cpToWinPercent(before.score2STM)
+          : null;
 
         // Sacrifice detection (for Brilliant): only meaningful when the played
         // move is the engine's best — replay the opponent's reply line and see
         // how much NET material stays sacrificed after captures settle.
+        const replyPv = evals.refutations[i].length > 0 ? evals.refutations[i] : after.pv;
         const sacrifice = isBest
-          ? sacrificeAmount(fenBefore, fenAfter, after.pv, moverColor)
+          ? sacrificeAmount(fenBefore, fenAfter, replyPv, moverColor)
           : 0;
 
         const classification = classifyMove({
           isBest, isOnlyMove, isBookMove, sacrificeAmount: sacrifice,
-          secondBestGap, winBefore, winAfter,
+          secondBestGap, winSecondBest, winBefore, winAfter,
         });
 
         // Is the played move a capture / check? (replay it for context)
@@ -355,6 +313,29 @@ export function useGameReview() {
           givesCheck = c.isCheck();
         } catch { /* keep defaults */ }
 
+        // Tactical diagnosis for non-book, non-best moves.
+        let flaw: string | null = null;
+        let missedChance: string | null = null;
+        let betterLine: string | null = null;
+        let tags: string[] = [];
+        if (!isBest && !isBookMove) {
+          try {
+            const report = recognizeSituation({
+              fenBefore,
+              fenAfter,
+              playedUci: uci,
+              bestUci,
+              bestSan,
+              refutationPv: evals.refutations[i],
+              playedSan: game.sanMoves[i],
+            });
+            flaw = report.flaw;
+            missedChance = report.missedChance;
+            betterLine = report.betterLine;
+            tags = report.tags;
+          } catch { /* diagnosis is best-effort */ }
+        }
+
         // mate (mover perspective) after the move = negated opponent mate
         const mateForMover = after.mate !== null ? -after.mate : null;
 
@@ -368,6 +349,10 @@ export function useGameReview() {
           isCapture,
           givesCheck,
           openingName: opening?.name ?? null,
+          flaw,
+          missedChance,
+          betterLine,
+          tags,
         });
 
         // White-perspective eval & mate after this move (for board/graph)
@@ -409,7 +394,7 @@ export function useGameReview() {
 
       if (cancelledRef.current) return;
 
-      setState({
+      const doneState: UseGameReviewState = {
         phase: 'done',
         progress: 1,
         error: null,
@@ -424,7 +409,24 @@ export function useGameReview() {
         },
         counts,
         currentPly: moves.length > 0 ? 0 : -1,
-      });
+      };
+      setState(doneState);
+
+      // ── Persist to the LRU cache (best-effort) ──────────────────────────────
+      try {
+        const cacheMoves: CachedMove[] = moves.map(m => ({ ...m }));
+        setCachedReview(key, {
+          white: game.white,
+          black: game.black,
+          result: game.result,
+          moves: cacheMoves,
+          evalSeries,
+          openingName: doneState.openingName,
+          openingEco: doneState.openingEco,
+          accuracy: doneState.accuracy,
+          counts: doneState.counts,
+        });
+      } catch { /* persistence is best-effort */ }
     } catch (err) {
       if (cancelledRef.current) return;
       const message = err instanceof Error ? err.message : 'Analysis failed';

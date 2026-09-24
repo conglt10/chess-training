@@ -14,7 +14,7 @@ import './MastersMode.css';
 
 const LAST_MOVE_HIGHLIGHT = 'rgba(246, 192, 0, 0.45)';
 const BEST_MOVE_ARROW = 'rgba(38, 194, 163, 0.9)';
-const SUBOPTIMAL = new Set(['good', 'inaccuracy', 'mistake', 'miss', 'blunder']);
+const SUBOPTIMAL = new Set(['inaccuracy', 'mistake', 'blunder']);
 
 // A player name prefixed with its piece-colour chip.
 function Side({ name, elo, color }: { name: string; elo: number | null; color: 'w' | 'b' }) {
