@@ -14,7 +14,7 @@ import { playMoveSound } from '../../utils/sound';
 import { CLASSIFICATION_META } from '../../utils/moveClassifier';
 import type { ThemeConfig } from '../../types';
 
-const SUBOPTIMAL = new Set(['good', 'inaccuracy', 'mistake', 'miss', 'blunder']);
+const SUBOPTIMAL = new Set(['inaccuracy', 'mistake', 'blunder']);
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 interface Props {
@@ -47,11 +47,11 @@ export default function GameReview({ theme, initialPgn, initialOrientation = 'wh
   // Where back/cancel/new-game buttons lead: out (embedded) or import screen (standalone).
   const exit = onExit ?? reset;
 
-  const handleSubmit = useCallback((pgn: string) => {
+  const handleSubmit = useCallback((pgn: string, cacheKey?: string) => {
     setParseError(null);
     try {
       const parsed = parsePgn(pgn);
-      start(parsed);
+      start(parsed, cacheKey);
     } catch (e) {
       setParseError(e instanceof Error ? e.message : 'Could not parse PGN.');
     }
@@ -159,6 +159,7 @@ export default function GameReview({ theme, initialPgn, initialOrientation = 'wh
         <div className="review-analyzing-card glass">
           <div className="review-analyzing-spinner" />
           <h2>Analyzing game…</h2>
+          <p className="review-progress-text">Running Stockfish locally in your browser</p>
           {game && <p className="review-analyzing-players">{game.white} vs {game.black}</p>}
           <div className="review-progress-track">
             <div className="review-progress-fill" style={{ width: `${Math.round(state.progress * 100)}%` }} />
@@ -254,6 +255,16 @@ export default function GameReview({ theme, initialPgn, initialOrientation = 'wh
               <p className="review-comment-detail">{activeMove.comment.detail}</p>
               {activeMove.comment.suggestion && (
                 <p className="review-comment-best">💡 Better was <strong>{activeMove.comment.suggestion}</strong></p>
+              )}
+              {activeMove.comment.betterLine && (
+                <p className="review-comment-best">♟ {activeMove.comment.betterLine}</p>
+              )}
+              {activeMove.comment.tags && activeMove.comment.tags.length > 0 && (
+                <div className="review-comment-tags">
+                  {activeMove.comment.tags.map(t => (
+                    <span className="review-comment-tag" key={t}>{t}</span>
+                  ))}
+                </div>
               )}
               {activeMove.tip && <p className="review-comment-tip">📌 {activeMove.tip}</p>}
             </div>

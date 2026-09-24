@@ -2,8 +2,10 @@
  * reviewCommentator.ts
  *
  * Builds the coach's per-move commentary for the Game Review. Comments are
- * generated from Stockfish data plus light positional context (captures,
- * checks, eval swing, the engine's preferred move, opening name) — no LLM.
+ * generated from Stockfish data plus the situation recognizer's tactical
+ * report (flaw / missedChance / betterLine / tags) and light positional
+ * context (captures, checks, eval swing, the engine's preferred move, opening
+ * name) — no LLM.
  */
 
 import type { Classification } from './moveClassifier';
@@ -23,6 +25,11 @@ export interface ReviewCommentInput {
   givesCheck: boolean;
   /** Opening name, when the move is still book */
   openingName?: string | null;
+  /** Tactical report from the situation recognizer (optional) */
+  flaw?: string | null;
+  missedChance?: string | null;
+  betterLine?: string | null;
+  tags?: string[];
 }
 
 export interface ReviewComment {
@@ -30,6 +37,10 @@ export interface ReviewComment {
   detail: string;
   /** Best move to suggest (SAN) — shown as "Better was …" */
   suggestion?: string;
+  /** Concrete refutation-aware line note, e.g. "Bc4 was much better because…" */
+  betterLine?: string;
+  /** Tactical/positional tags (e.g. "Hanging Piece", "Pin") */
+  tags?: string[];
 }
 
 function pick<T>(arr: T[], seed: number): T {
@@ -61,14 +72,10 @@ const HEADLINES: Record<Classification, string[]> = {
   brilliant:  ['Brilliant!!', 'A stunning move!'],
   great:      ['Great move!', 'Excellent find!'],
   best:       ['Best move!', 'Spot on — the top choice.'],
-  excellent:  ['Excellent.', 'Very accurate.'],
-  good:       ['Good move.', 'Solid.'],
   book:       ['Book move.', 'Theory.'],
   inaccuracy: ['Inaccuracy.', 'A small slip.'],
   mistake:    ['Mistake.', 'That lets the advantage slip.'],
-  miss:       ['Missed chance!', 'You missed a stronger continuation.'],
   blunder:    ['Blunder!', 'A serious error.'],
-  forced:     ['Forced.', 'Only move.'],
 };
 
 export function generateReviewComment(input: ReviewCommentInput): ReviewComment {
@@ -76,76 +83,69 @@ export function generateReviewComment(input: ReviewCommentInput): ReviewComment 
     classification, san, bestSan, cpLoss, evalForMover, mateForMover,
     isCapture, givesCheck, openingName,
   } = input;
+  const tags = input.tags && input.tags.length > 0 ? [...new Set(input.tags)] : undefined;
 
   const seed = san.length + cpLoss;
   const headline = pick(HEADLINES[classification], seed);
   const adv = advantagePhrase(evalForMover, mateForMover);
   const captureBit = isCapture ? ' winning material' : '';
   const checkBit = givesCheck ? ' with check' : '';
+  const betterLine = input.betterLine ?? undefined;
+  const withTags = (c: { headline: string; detail: string; suggestion?: string }): ReviewComment => ({
+    ...c,
+    ...(betterLine ? { betterLine } : {}),
+    ...(tags ? { tags } : {}),
+  });
 
   switch (classification) {
     case 'brilliant':
-      return {
+      return withTags({
         headline,
         detail: `A brilliant sacrifice${checkBit}! You gave up material, but the engine confirms ${san} is the strongest move — now ${adv}.`,
-      };
+      });
     case 'great':
-      return {
+      return withTags({
         headline,
         detail: `This was the only move that kept things going your way${checkBit}. Precise calculation — ${adv}.`,
-      };
+      });
     case 'best':
-      return {
+      return withTags({
         headline,
         detail: `${san} is exactly what the engine recommends${captureBit}${checkBit}. ${capitalize(adv)}.`,
-      };
-    case 'excellent':
-      return {
-        headline,
-        detail: `A strong, accurate move${captureBit}${checkBit}. ${capitalize(adv)}.`,
-      };
-    case 'good':
-      return {
-        headline,
-        detail: `A reasonable move${checkBit}. Not the engine's top pick, but it keeps the position healthy — ${adv}.`,
-        suggestion: bestSan ?? undefined,
-      };
+      });
     case 'book':
-      return {
+      return withTags({
         headline,
         detail: openingName
           ? `A well-known theoretical move from the ${openingName}. You're following established opening principles.`
           : `A standard opening move — you're in well-charted territory.`,
-      };
-    case 'forced':
-      return {
-        headline,
-        detail: `There was only one legal move here, so ${san} was forced.`,
-      };
+      });
     case 'inaccuracy':
-      return {
+      return withTags({
         headline,
-        detail: `${san} isn't quite best — it costs about ${lossPawns(cpLoss)} pawns of value. Now ${adv}.`,
+        detail: input.flaw
+          ? `${san} ${input.flaw} — it costs about ${lossPawns(cpLoss)} pawns of value. Now ${adv}.`
+          : `${san} isn't quite best — it costs about ${lossPawns(cpLoss)} pawns of value. Now ${adv}.`,
         suggestion: bestSan ?? undefined,
-      };
+      });
     case 'mistake':
-      return {
+      return withTags({
         headline,
-        detail: `${san} hands over roughly ${lossPawns(cpLoss)} pawns. Always check your opponent's replies first. Now ${adv}.`,
+        detail: input.flaw
+          ? `${san} ${input.flaw}, handing over roughly ${lossPawns(cpLoss)} pawns. Always check your opponent's replies first. Now ${adv}.`
+          : `${san} hands over roughly ${lossPawns(cpLoss)} pawns. Always check your opponent's replies first. Now ${adv}.`,
         suggestion: bestSan ?? undefined,
-      };
-    case 'miss':
-      return {
+      });
+    case 'blunder': {
+      const bits = [input.flaw, input.missedChance].filter(Boolean) as string[];
+      return withTags({
         headline,
-        detail: `You had a much stronger continuation available and missed it, losing about ${lossPawns(cpLoss)} pawns of advantage. Now ${adv}.`,
+        detail: bits.length > 0
+          ? `${san} ${bits.join(' — ')} (about ${lossPawns(cpLoss)} pawns). Now ${adv}.`
+          : `${san} loses about ${lossPawns(cpLoss)} pawns of value — look for checks, captures and hanging pieces before every move. Now ${adv}.`,
         suggestion: bestSan ?? undefined,
-      };
-    case 'blunder':
-      return {
-        headline,
-        detail: `${san} loses about ${lossPawns(cpLoss)} pawns of value — look for checks, captures and hanging pieces before every move. Now ${adv}.`,
-        suggestion: bestSan ?? undefined,
-      };
+      });
+    }
   }
 }
 
@@ -168,7 +168,7 @@ export const COACH_TIPS: string[] = [
 
 export function tipFor(classification: Classification, seed: number): string | undefined {
   if (classification === 'inaccuracy' || classification === 'mistake' ||
-      classification === 'miss' || classification === 'blunder') {
+      classification === 'blunder') {
     return COACH_TIPS[seed % COACH_TIPS.length];
   }
   return undefined;

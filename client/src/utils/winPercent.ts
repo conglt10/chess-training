@@ -2,7 +2,9 @@
  * winPercent.ts
  *
  * Converts engine centipawn evaluations into win-probability and accuracy,
- * following the Lichess / chess.com CAPS-style approach.
+ * following the WhyBlunder logistic model:
+ *
+ *   WP = 1 / (1 + 10^(-cp/400))   (× 100 for the 0–100 pipeline scale)
  *
  * Game accuracy mirrors chess.com more closely than a plain average:
  *   - per-move accuracy from the mover's win-probability drop
@@ -15,8 +17,7 @@
 
 /** Win probability (0–100) for the side the eval is measured from. */
 export function cpToWinPercent(cp: number): number {
-  const clamped = Math.max(-2000, Math.min(2000, cp));
-  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
+  return 100 / (1 + Math.pow(10, -cp / 400));
 }
 
 /** Accuracy (0–100) for a single move from the mover's win-probability drop. */
