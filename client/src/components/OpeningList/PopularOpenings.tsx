@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import './PopularOpenings.css';
 import { Opening } from '../../types';
 import type { FamilySummary, FirstMoveTab } from '../../types';
-import { fetchFamilySummaries, fetchOpenings } from '../../api/openings';
+import { fetchFamilySummaries } from '../../api/openings';
 
 interface PopularOpeningsProps {
   onSelect: (opening: Opening) => void;
@@ -43,7 +43,6 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
   const [total, setTotal] = useState(0);
   const [tabCounts, setTabCounts] = useState<Record<FirstMoveTab, number>>({ e4: 0, d4: 0, other: 0 });
   const [loading, setLoading] = useState(true);
-  const [loadingVariations, setLoadingVariations] = useState<string | null>(null);
 
   // Load paginated family summaries from backend
   const load = useCallback(async (
@@ -78,17 +77,12 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
   // Reset page on tab or search change
   useEffect(() => { setFamilyPage(1); }, [activeTab, search]);
 
-  // When a family row is clicked, load its variations then hand off to parent
-  const handleFamilyClick = useCallback(async (summary: FamilySummary, color: string) => {
-    setLoadingVariations(summary.name);
-    try {
-      const data = await fetchOpenings({ family: summary.name, pageSize: 500 });
-      onFamilySelect(summary.name, data.openings, color);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingVariations(null);
-    }
+  // Family rows navigate straight to the detail page, which fetches its own
+  // paginated variations. (Previously this prefetched up to 100 rows with the
+  // substring `family` filter and then discarded them — a wasted request that
+  // was also truncated by the server's page-size clamp.)
+  const handleFamilyClick = useCallback((summary: FamilySummary, color: string) => {
+    onFamilySelect(summary.name, [], color);
   }, [onFamilySelect]);
 
   const totalPages = Math.ceil(total / FAMILIES_PER_PAGE);
@@ -165,11 +159,10 @@ export default function PopularOpenings({ onSelect, onFamilySelect }: PopularOpe
                   id={`family-${summary.name.replace(/\s+/g, '-').toLowerCase()}`}
                   className="popular-family-header"
                   style={{ '--tab-color': meta.color } as React.CSSProperties}
-                  disabled={loadingVariations === summary.name}
                   onClick={() => handleFamilyClick(summary, meta.color)}
                 >
                   <div className="popular-family-letter" style={{ background: meta.color }}>
-                    {loadingVariations === summary.name ? '…' : summary.name.charAt(0).toUpperCase()}
+                    {summary.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="popular-family-info">
                     <span className="popular-family-name">{summary.name}</span>

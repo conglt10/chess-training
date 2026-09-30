@@ -14,7 +14,7 @@ import { playMoveSound } from '../../utils/sound';
 import { CLASSIFICATION_META } from '../../utils/moveClassifier';
 import type { ThemeConfig } from '../../types';
 
-const SUBOPTIMAL = new Set(['inaccuracy', 'mistake', 'blunder']);
+const SUBOPTIMAL = new Set(['inaccuracy', 'mistake', 'miss', 'blunder']);
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 interface Props {

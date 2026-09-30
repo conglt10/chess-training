@@ -27,9 +27,14 @@ export async function fetchCollectionGames(params: {
   if (params.sortDir) q.set('sortDir', params.sortDir);
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
-  const res = await fetch(`${BASE}/master-games/by-collection?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  // Static corpus — cache by exact query so paging/sorting back and forth
+  // never hits the server twice for the same page.
+  const qs = q.toString();
+  return cached(`master-games/by-collection:${qs}`, async () => {
+    const res = await fetch(`${BASE}/master-games/by-collection?${qs}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<CollectionGamesResponse>;
+  });
 }
 
 /**
@@ -46,13 +51,21 @@ export async function fetchExplorer(params: {
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
 
-  const res = await fetch(`${BASE}/master-games/explorer?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  // Positions are static — cache by exact line+page so Undo/redo and the
+  // browser Back button through a line never refetch.
+  const qs = q.toString();
+  return cached(`master-games/explorer:${qs}`, async () => {
+    const res = await fetch(`${BASE}/master-games/explorer?${qs}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<ExplorerResult>;
+  });
 }
 
 export async function fetchMasterGame(id: string): Promise<MasterGame> {
-  const res = await fetch(`${BASE}/master-games/${encodeURIComponent(id)}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  // Full games are static — cache so re-entering a drill never re-downloads.
+  return cached(`master-games/game:${id}`, async () => {
+    const res = await fetch(`${BASE}/master-games/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<MasterGame>;
+  });
 }

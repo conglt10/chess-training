@@ -1,20 +1,33 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Layout/Header';
 import OpeningList from './components/OpeningList/OpeningList';
-import VisionTraining from './components/VisionTraining/VisionTraining';
-import PlayWithCoach from './components/CoachGame/PlayWithCoach';
-import GameReview from './components/GameReview/GameReview';
 import MastersLayout from './components/MastersMode/MastersMode';
 import PlayerBrowser from './components/MastersMode/PlayerBrowser';
 import MasterExplorerPage from './components/MastersMode/MasterExplorerPage';
-import MasterGuessTrainerPage from './components/MastersMode/MasterGuessTrainerPage';
-import TheoryPage from './pages/TheoryPage';
-import ExercisePage from './pages/ExercisePage';
 import FamilyPage from './pages/FamilyPage';
 import OpeningGamesBrowser from './components/OpeningGames/OpeningGamesBrowser';
 import ThemeSelector from './components/ThemeSelector/ThemeSelector';
 import { useTheme } from './hooks/useTheme';
+
+// Heavy routes are code-split so the initial bundle (repertoire + masters
+// lists) stays small and paints fast on slow connections. These chunks load
+// on demand when the user navigates to them.
+const TheoryPage = lazy(() => import('./pages/TheoryPage'));
+const ExercisePage = lazy(() => import('./pages/ExercisePage'));
+const MasterGuessTrainerPage = lazy(() => import('./components/MastersMode/MasterGuessTrainerPage'));
+const VisionTraining = lazy(() => import('./components/VisionTraining/VisionTraining'));
+const PlayWithCoach = lazy(() => import('./components/CoachGame/PlayWithCoach'));
+const GameReview = lazy(() => import('./components/GameReview/GameReview'));
+
+function RouteFallback() {
+  return (
+    <div className="loading-center">
+      <div className="spinner" />
+      <span>Loading…</span>
+    </div>
+  );
+}
 
 export default function App() {
   const [showThemePanel, setShowThemePanel] = useState(false);
@@ -25,6 +38,7 @@ export default function App() {
       <Header onShowThemes={() => setShowThemePanel(true)} />
 
       <main className="app-main">
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/repertoire" replace />} />
           <Route path="/repertoire" element={<OpeningList />} />
@@ -49,6 +63,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/repertoire" replace />} />
         </Routes>
+        </Suspense>
       </main>
 
       {showThemePanel && (

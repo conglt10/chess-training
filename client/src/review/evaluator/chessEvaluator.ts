@@ -22,8 +22,12 @@
  * | Book       | ECO line match (ply ≤ 16)                               |
  * | Inaccuracy | .04 ≤ ΔWP < .10 (downgraded from mistake if WP > .90)   |
  * | Mistake    | .10 ≤ ΔWP < .22                                        |
- * | Blunder    | ΔWP ≥ .22 ∨ missed win (before ≥ .85 ∧ after < .55);    |
- * |            |   no blunder when simplifying (WP ≥ .95 ∧ ΔWP < .15)    |
+ * | Miss       | large drop (ΔWP ≥ .22) or missed win that leaves the game  |
+ * |            |   level-or-better (WP_after ≥ .50) — the winning idea was   |
+ * |            |   missed but nothing is spoiled yet                         |
+ * | Blunder    | ΔWP ≥ .22 ∧ WP_after < .50 (the move actually spoils the    |
+ * |            |   position), ∨ missed win that drops below .50; no blunder  |
+ * |            |   when simplifying (WP ≥ .95 ∧ ΔWP < .15)                    |
  *
  * Win probabilities are exposed on the 0–100 scale (WP × 100) to stay
  * compatible with the accuracy pipeline (`moveAccuracy`/`sideAccuracy`).
@@ -36,6 +40,7 @@ export type Classification =
   | 'book'
   | 'inaccuracy'
   | 'mistake'
+  | 'miss'
   | 'blunder';
 
 export interface ClassificationMeta {
@@ -54,12 +59,13 @@ export const CLASSIFICATION_META: Record<Classification, ClassificationMeta> = {
   book:       { label: 'Book',       symbol: '',   glyph: '♟',  color: '#a88865' },
   inaccuracy: { label: 'Inaccuracy', symbol: '?!', glyph: '?!', color: '#f7c631' },
   mistake:    { label: 'Mistake',    symbol: '?',  glyph: '?',  color: '#ffa459' },
+  miss:       { label: 'Miss',       symbol: '',   glyph: '○',  color: '#f07b1d' },
   blunder:    { label: 'Blunder',    symbol: '??', glyph: '??', color: '#fa412d' },
 };
 
 /** Order used for the summary report (left → right, best → worst). */
 export const CLASSIFICATION_ORDER: Classification[] = [
-  'brilliant', 'great', 'best', 'book', 'inaccuracy', 'mistake', 'blunder',
+  'brilliant', 'great', 'best', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder',
 ];
 
 // ── Win probability ──────────────────────────────────────────────────────────
@@ -148,10 +154,19 @@ export function classifyMove(i: ClassifyInput): Classification {
   // Simplifying guard: barely denting a fully-won position is never a blunder.
   const simplifying = wb >= 0.95 && drop < 0.15;
 
-  // Missed win escalates straight to blunder.
+  // Missed win: had a near-decisive edge but let it slip. Only a blunder
+  // when the position is actually spoiled (WP_after < .50); a slip that
+  // keeps the game level-or-better is a miss, e.g. passing up Qxa7 but
+  // staying slightly better.
   const missedWin = wb >= 0.85 && wa < 0.55;
-  if (missedWin) return 'blunder';
-  if (drop >= 0.22) return simplifying ? 'mistake' : 'blunder';
+  if (missedWin) return wa < 0.50 ? 'blunder' : 'miss';
+  if (drop >= 0.22) {
+    if (simplifying) return 'mistake';
+    // Large drop but the game is still intact (level or better): a miss,
+    // not a blunder. Blunders change the direction of the game.
+    if (wa >= 0.50) return 'miss';
+    return 'blunder';
+  }
   if (drop >= 0.10) {
     // Downgrade from mistake while converting a clearly-won game.
     if (wb > 0.90) return 'inaccuracy';

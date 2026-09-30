@@ -35,7 +35,12 @@ const ELITE_KEY = 'lichess-elite';
 // reference — the source file plus the game's index within that file — so the
 // full movetext can be re-read from disk on demand (drill). This keeps the
 // resident metadata cache small, which matters on Render's memory-limited tier.
-type RawGame = MasterGameSummary & { _file: string; _idx: number };
+type RawGame = MasterGameSummary & {
+  _file: string;
+  _idx: number;
+  /** Lowercased "white black event opening eco year" — precomputed once so per-request search never rebuilds strings. */
+  _hay: string;
+};
 
 // ── In-memory caches ───────────────────────────────────────────────────────
 // Cheap header-only metadata (built at startup):
@@ -103,21 +108,93 @@ function splitGames(pgnText: string): string[] {
   return games.filter(g => g.length > 0);
 }
 
-function header(pgn: string, tag: string): string {
-  const m = pgn.match(new RegExp(`\\[${tag}\\s+"([^"]*)"\\]`));
-  return m ? m[1] : '';
+/** Header tags we actually index — parsed in a single pass over the header section. */
+interface GameHeaders {
+  white: string; black: string; whiteElo: string; blackElo: string;
+  event: string; date: string; result: string; eco: string; opening: string;
 }
 
-/** Cheap ply count from the movetext (no chess.js). */
-function countPlies(pgn: string): number {
-  const blank = pgn.indexOf('\n\n');
-  const movetext = blank === -1 ? '' : pgn.slice(blank + 2);
-  return movetext
-    .replace(/\{[^}]*\}/g, ' ')
-    .replace(/\d+\.(\.\.)?/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(t => t && !VALID_RESULTS.has(t as GameResult) && t !== '*').length;
+/**
+ * Parse the PGN header section (everything before the blank line) in one pass.
+ * The old code ran one full-text RegExp per tag (~9 scans of the whole game,
+ * including the movetext); this scans the headers once and never touches the
+ * movetext, which is the bulk of the bytes.
+ */
+function parseHeaders(pgn: string, headerEnd: number): GameHeaders {
+  const h: GameHeaders = {
+    white: '', black: '', whiteElo: '', blackElo: '',
+    event: '', date: '', result: '', eco: '', opening: '',
+  };
+  const section = headerEnd === -1 ? pgn : pgn.slice(0, headerEnd);
+  let i = 0;
+  while (i < section.length) {
+    const open = section.indexOf('[', i);
+    if (open === -1) break;
+    const sp = section.indexOf(' ', open + 1);
+    if (sp === -1) break;
+    const tag = section.slice(open + 1, sp);
+    const q1 = section.indexOf('"', sp + 1);
+    if (q1 === -1) break;
+    const q2 = section.indexOf('"', q1 + 1);
+    if (q2 === -1) break;
+    const value = section.slice(q1 + 1, q2);
+    switch (tag) {
+      case 'White': h.white = value; break;
+      case 'Black': h.black = value; break;
+      case 'WhiteElo': h.whiteElo = value; break;
+      case 'BlackElo': h.blackElo = value; break;
+      case 'Event': h.event = value; break;
+      case 'Date': h.date = value; break;
+      case 'Result': h.result = value; break;
+      case 'ECO': h.eco = value; break;
+      case 'Opening': h.opening = value; break;
+    }
+    i = q2 + 1;
+  }
+  return h;
+}
+
+/**
+ * Single-pass ply counter over movetext (no chess.js, no intermediate strings).
+ * Skips `{...}` comments, move numbers (`12.` / `12...`, incl. glued `12.e4`),
+ * game results and `*`. Castling written as `0-0` is counted as a move.
+ */
+function countPliesFast(movetext: string): number {
+  let count = 0;
+  let i = 0;
+  const n = movetext.length;
+  while (i < n) {
+    const c = movetext[i];
+    // Skip comments wholesale (they may contain spaces).
+    if (c === '{') {
+      const end = movetext.indexOf('}', i + 1);
+      i = end === -1 ? n : end + 1;
+      continue;
+    }
+    if (c === ' ' || c === '\n' || c === '\t' || c === '\r') { i++; continue; }
+    let j = i + 1;
+    while (j < n) {
+      const d = movetext[j];
+      if (d === ' ' || d === '\n' || d === '\t' || d === '\r' || d === '{') break;
+      j++;
+    }
+    const tok = movetext.slice(i, j);
+    i = j;
+    if (tok === '*' || VALID_RESULTS.has(tok as GameResult)) continue;
+    // Move number? Leading digits followed by a dot.
+    let k = 0;
+    while (k < tok.length && tok[k] >= '0' && tok[k] <= '9') k++;
+    if (k > 0 && k < tok.length && tok[k] === '.') {
+      const rest = tok.slice(k + 1);
+      // Pure move number ("12.", "12...", "12. ...") → skip; glued move
+      // ("12.e4") → the remainder is one real move.
+      if (rest === '' || rest[0] === '.') continue;
+      count++;
+      continue;
+    }
+    count++;
+  }
+  return count;
 }
 
 // Opening-collection classification, written by `npm run download-opening-games`.
@@ -180,6 +257,7 @@ function ensureMetadata(): void {
     console.warn(`[master-games] Data dir not found: ${DATA_DIR}`);
     console.warn('[master-games] Run `npm run download-master-games` / `download-legend-games`.');
     collections = [];
+    sortedByCollection = new Map();
     return;
   }
 
@@ -201,40 +279,50 @@ function ensureMetadata(): void {
     const gamesInFile = splitGames(content);
     for (let idx = 0; idx < gamesInFile.length; idx++) {
       const pgn = gamesInFile[idx];
-      const result = (header(pgn, 'Result') || '*') as GameResult;
+      const blank = pgn.indexOf('\n\n');
+      const h = parseHeaders(pgn, blank);
+      const result = (h.result || '*') as GameResult;
       if (!VALID_RESULTS.has(result)) continue;
-      const plies = countPlies(pgn);
+      const plies = countPliesFast(blank === -1 ? '' : pgn.slice(blank + 2));
       if (plies < MIN_PLIES) continue;
 
-      const date = header(pgn, 'Date');
-      const eco = header(pgn, 'ECO');
+      const date = h.date;
+      const eco = h.eco;
       let id = crypto.createHash('sha1').update(pgn).digest('hex').slice(0, 12);
       let n = 1;
       while (rawById!.has(id)) id = `${id}-${n++}`;
 
+      const white = h.white || 'Unknown';
+      const black = h.black || 'Unknown';
+      const event = h.event;
+      const opening = h.opening || ecoMap.get(eco) || '';
+      const year = toNum(date.slice(0, 4));
       const raw: RawGame = {
         id,
-        white: header(pgn, 'White') || 'Unknown',
-        black: header(pgn, 'Black') || 'Unknown',
-        whiteElo: toNum(header(pgn, 'WhiteElo')),
-        blackElo: toNum(header(pgn, 'BlackElo')),
-        event: header(pgn, 'Event'),
+        white,
+        black,
+        whiteElo: toNum(h.whiteElo),
+        blackElo: toNum(h.blackElo),
+        event,
         date,
-        year: toNum(date.slice(0, 4)),
+        year,
         result,
         eco,
-        opening: header(pgn, 'Opening') || ecoMap.get(eco) || '',
+        opening,
         plies,
         collectionKey: key,
         collection: label,
         _file: file,
         _idx: idx,
+        _hay: `${white} ${black} ${event} ${opening} ${eco} ${year ?? ''}`.toLowerCase(),
       };
       rawById!.set(id, raw);
       if (!rawByCollection!.has(key)) rawByCollection!.set(key, []);
       rawByCollection!.get(key)!.push(raw);
     }
   }
+
+  buildSortedViews();
 
   const manifest = getOpeningsManifest();
   collections = [...rawByCollection!.entries()]
@@ -378,12 +466,31 @@ async function buildIndexAsync(): Promise<void> {
     // server (parsing thousands of games with chess.js is CPU-heavy).
     if (indexed % 20 === 0) await new Promise(r => setImmediate(r));
 
-    const game = parseRaw(raw);
-    if (!game) continue;
+    // Single chess.js pass per game: parse once, then replay with from/to
+    // objects (much cheaper than re-parsing SAN strings). Reuses the drill
+    // cache when the game was already parsed on demand.
+    const cached = parsedById.get(raw.id);
+    let sans: string[];
+    let ucis: string[];
+    if (cached) {
+      sans = cached.moves;
+      ucis = cached.uciMoves;
+    } else {
+      const pgn = loadPgnForRaw(raw);
+      if (pgn === null) continue;
+      const parsed = new Chess();
+      try { parsed.loadPgn(pgn); } catch { continue; }
+      const hist = parsed.history({ verbose: true });
+      if (hist.length === 0) continue;
+      sans = hist.map(m => m.san);
+      ucis = hist.map(m => m.from + m.to + (m.promotion ?? ''));
+      // Populate the drill cache too — the guess trainer gets it for free.
+      parsedById.set(raw.id, { ...rawToSummary(raw), moves: sans, uciMoves: ucis });
+    }
     indexed++;
 
     const chess = new Chess();
-    const plies = Math.min(game.moves.length, INDEX_PLIES);
+    const plies = Math.min(sans.length, INDEX_PLIES);
     const seenPositions = new Set<string>();
     const seenMoves = new Set<string>();
 
@@ -391,22 +498,24 @@ async function buildIndexAsync(): Promise<void> {
       const key = positionKey(chess.fen());
       let entry = index.get(key);
       if (!entry) { entry = { moves: new Map(), gameIds: [] }; index.set(key, entry); }
-      if (!seenPositions.has(key)) { entry.gameIds.push(game.id); seenPositions.add(key); }
+      if (!seenPositions.has(key)) { entry.gameIds.push(raw.id); seenPositions.add(key); }
 
       if (ply < plies) {
-        const uci = game.uciMoves[ply];
-        const san = game.moves[ply];
+        const uci = ucis[ply];
+        const san = sans[ply];
         let stat = entry.moves.get(uci);
         if (!stat) { stat = { san, uci, gameCount: 0, whiteWins: 0, draws: 0, blackWins: 0 }; entry.moves.set(uci, stat); }
         const moveKey = `${key}|${uci}`;
         if (!seenMoves.has(moveKey)) {
           seenMoves.add(moveKey);
           stat.gameCount++;
-          if (game.result === '1-0') stat.whiteWins++;
-          else if (game.result === '0-1') stat.blackWins++;
-          else if (game.result === '1/2-1/2') stat.draws++;
+          if (raw.result === '1-0') stat.whiteWins++;
+          else if (raw.result === '0-1') stat.blackWins++;
+          else if (raw.result === '1/2-1/2') stat.draws++;
         }
-        chess.move(san);
+        try {
+          chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4) || undefined });
+        } catch { break; }
       }
     }
   }
@@ -452,9 +561,36 @@ export interface CollectionGamesOpts {
 
 function matchesSearch(g: RawGame, q: string): boolean {
   if (!q) return true;
-  const hay = `${g.white} ${g.black} ${g.event} ${g.opening} ${g.eco} ${g.year ?? ''}`.toLowerCase();
+  // `_hay` is precomputed at index time — no per-request string building.
   // Every whitespace-separated term must appear (AND semantics).
-  return q.split(/\s+/).every(term => hay.includes(term));
+  return q.split(/\s+/).every(term => g._hay.includes(term));
+}
+
+// Pre-sorted views per collection, built once at index time so paginated list
+// requests filter (order-preserving) instead of re-sorting thousands of rows
+// on every keystroke/page turn.
+type SortKey = `${GamesSortBy}-${SortDir}`;
+let sortedByCollection: Map<string, Record<SortKey, RawGame[]>> | null = null;
+
+function buildSortedViews(): void {
+  const byDateDesc = (a: RawGame, b: RawGame) => {
+    const ay = a.year ?? 0, by = b.year ?? 0;
+    if (ay !== by) return by - ay;
+    return b.date.localeCompare(a.date);
+  };
+  const byDateAsc = (a: RawGame, b: RawGame) => -byDateDesc(a, b);
+  const byMovesDesc = (a: RawGame, b: RawGame) => b.plies - a.plies;
+  const byMovesAsc = (a: RawGame, b: RawGame) => a.plies - b.plies;
+
+  sortedByCollection = new Map();
+  for (const [key, list] of rawByCollection!.entries()) {
+    sortedByCollection.set(key, {
+      'date-desc': [...list].sort(byDateDesc),
+      'date-asc': [...list].sort(byDateAsc),
+      'moves-desc': [...list].sort(byMovesDesc),
+      'moves-asc': [...list].sort(byMovesAsc),
+    });
+  }
 }
 
 export function getGamesByCollection(key: string, opts: CollectionGamesOpts): CollectionGamesResult {
@@ -464,21 +600,14 @@ export function getGamesByCollection(key: string, opts: CollectionGamesOpts): Co
   const sortDir = opts.sortDir ?? 'desc';
   const q = (opts.search ?? '').toLowerCase().trim();
 
-  let list = rawByCollection!.get(key) ?? [];
-  if (q) list = list.filter(g => matchesSearch(g, q));
+  // Order-preserving filter over the pre-sorted view — no per-request sort.
+  const ordered = sortedByCollection?.get(key)?.[`${sortBy}-${sortDir}` as SortKey]
+    ?? rawByCollection!.get(key) ?? [];
+  const list = q ? ordered.filter(g => matchesSearch(g, q)) : ordered;
 
-  const dir = sortDir === 'asc' ? 1 : -1;
-  const sorted = [...list].sort((a, b) => {
-    if (sortBy === 'moves') return dir * (a.plies - b.plies);
-    // 'date' — compare year, then full date string as a tiebreak
-    const ay = a.year ?? 0, by = b.year ?? 0;
-    if (ay !== by) return dir * (ay - by);
-    return dir * a.date.localeCompare(b.date);
-  });
-
-  const total = sorted.length;
+  const total = list.length;
   const start = (page - 1) * pageSize;
-  const games = sorted.slice(start, start + pageSize).map(rawToSummary);
+  const games = list.slice(start, start + pageSize).map(rawToSummary);
   return { games, total, page, pageSize };
 }
 

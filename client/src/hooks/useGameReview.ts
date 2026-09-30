@@ -136,7 +136,7 @@ function clamp(v: number, lo: number, hi: number): number {
 function emptyCounts(): Record<Classification, number> {
   return {
     brilliant: 0, great: 0, best: 0,
-    book: 0, inaccuracy: 0, mistake: 0, blunder: 0,
+    book: 0, inaccuracy: 0, mistake: 0, miss: 0, blunder: 0,
   };
 }
 

@@ -24,9 +24,14 @@ export async function fetchOpenings(params: {
   if (params.page) q.set('page', String(params.page));
   if (params.pageSize) q.set('pageSize', String(params.pageSize));
 
-  const res = await fetch(`${BASE}/openings?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  // The opening book is static per deploy — cache by exact query so paging
+  // back, revisiting tabs, or re-typing a search never refetches.
+  const qs = q.toString();
+  return cached(`openings/list:${qs}`, async () => {
+    const res = await fetch(`${BASE}/openings?${qs}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json() as Promise<OpeningsResponse>;
+  });
 }
 
 /**
