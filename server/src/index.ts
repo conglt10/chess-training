@@ -90,10 +90,16 @@ server.listen(PORT, () => {
       console.error('Failed to pre-load master games:', err);
     }
 
-    // Pre-warm pool: all engines start their UCI handshake now.
-    getPool().warmUp()
-      .then(() => console.log('Stockfish pool ready'))
-      .catch(err => console.error('Pool warm-up error:', err));
+    // Pre-warm pool lazily: initializing 3 Stockfish engines is CPU-heavy and
+    // would contend with the metadata scan + explorer index build on Render's
+    // small instances right after a cold start — exactly when the repertoire
+    // and masters pages need the CPU. Delay it so data caches win the race;
+    // coach requests before then still work (they init on demand and wait).
+    setTimeout(() => {
+      getPool().warmUp()
+        .then(() => console.log('Stockfish pool ready'))
+        .catch(err => console.error('Pool warm-up error:', err));
+    }, 15000);
   });
 });
 

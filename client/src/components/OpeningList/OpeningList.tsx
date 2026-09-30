@@ -25,7 +25,20 @@ export default function OpeningList() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 100;
 
+  // Hero stat only needs the total — fetch a single row once on mount instead
+  // of a full page that would be discarded.
+  useEffect(() => {
+    let cancelled = false;
+    fetchOpenings({ page: 1, pageSize: 1 })
+      .then(data => { if (!cancelled) setTotal(data.total); })
+      .catch(e => console.error(e));
+    return () => { cancelled = true; };
+  }, []);
+
   const load = useCallback(async () => {
+    // The browse payload is only used by the "Browse All" tab — don't burn a
+    // 100-row request on every visit while "Most Popular" is showing.
+    if (mode !== 'browse') return;
     setLoading(true);
     try {
       const data = await fetchOpenings({ search, eco: ecoFilter, page, pageSize: PAGE_SIZE });
@@ -36,12 +49,13 @@ export default function OpeningList() {
     } finally {
       setLoading(false);
     }
-  }, [search, ecoFilter, page]);
+  }, [search, ecoFilter, page, mode]);
 
   useEffect(() => {
+    if (mode !== 'browse') { setLoading(false); return; }
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
-  }, [load]);
+  }, [load, mode]);
 
   useEffect(() => { setPage(1); }, [search, ecoFilter]);
 

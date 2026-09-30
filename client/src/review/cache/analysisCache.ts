@@ -2,7 +2,7 @@
  * analysisCache.ts
  *
  * Client-side LRU cache for full-game reviews (WhyBlunder spec §4).
- * Persists in `localStorage` under `whyblunder_analysis_cache_v1`.
+ * Persists in `localStorage` under `whyblunder_analysis_cache_v2`.
  *
  * - Fingerprint normalization: strips headers, PGN comments (`{}`),
  *   variations (`()`), NAGs (`$N`), and clock stamps (`{[%clk …]}`) before
@@ -16,7 +16,7 @@
 import type { Classification } from '../../utils/moveClassifier';
 import type { ReviewComment } from '../../utils/reviewCommentator';
 
-export const ANALYSIS_CACHE_KEY = 'whyblunder_analysis_cache_v1';
+export const ANALYSIS_CACHE_KEY = 'whyblunder_analysis_cache_v2';
 export const ANALYSIS_CACHE_MAX = 5;
 
 export interface CachedMove {
@@ -42,7 +42,7 @@ export interface CachedMove {
 
 export interface CachedReview {
   /** Cache schema version — bump to invalidate old entries. */
-  v: 1;
+  v: 2;
   savedAt: number;
   white: string;
   black: string;
@@ -171,7 +171,7 @@ function evictLru(store: CacheStore): void {
 export function getCachedReview(key: string): CachedReview | null {
   try {
     const entry = loadStore().entries[key];
-    if (!entry || entry.v !== 1 || !Array.isArray(entry.moves)) return null;
+    if (!entry || entry.v !== 2 || !Array.isArray(entry.moves)) return null;
     // LRU touch.
     const store = loadStore();
     if (store.entries[key]) {
@@ -188,7 +188,7 @@ export function setCachedReview(key: string, review: Omit<CachedReview, 'v' | 's
   try {
     const store = loadStore();
     evictLru(store);
-    store.entries[key] = { ...review, v: 1, savedAt: Date.now() };
+    store.entries[key] = { ...review, v: 2, savedAt: Date.now() };
     saveStore(store);
   } catch {
     /* non-fatal */

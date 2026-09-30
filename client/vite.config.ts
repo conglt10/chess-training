@@ -9,6 +9,20 @@ export default defineConfig({
     format: 'es',
   },
   assetsInclude: ['**/*.wasm'],
+  build: {
+    // Split stable vendor libs into their own hashed chunks: they download in
+    // parallel with the app code and stay cached across deploys (their hashes
+    // only change when dependencies change, not on every app edit).
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-chess': ['chess.js', 'react-chessboard'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

@@ -21,7 +21,7 @@ import type { AnalysisResult, AnalyzeOptions, AnalysisHandle } from './stockfish
 // Re-export types so callers only need to import from this file
 export type { PV, AnalysisResult, AnalyzeOptions, AnalysisHandle } from './stockfishEngine';
 
-const POOL_SIZE = 3;
+const POOL_SIZE = Math.max(1, parseInt(process.env.STOCKFISH_POOL_SIZE ?? '3', 10) || 3);
 
 // ── Pool class ─────────────────────────────────────────────────────────────────
 

@@ -75,6 +75,7 @@ const HEADLINES: Record<Classification, string[]> = {
   book:       ['Book move.', 'Theory.'],
   inaccuracy: ['Inaccuracy.', 'A small slip.'],
   mistake:    ['Mistake.', 'That lets the advantage slip.'],
+  miss:       ['Miss.', 'A missed chance.'],
   blunder:    ['Blunder!', 'A serious error.'],
 };
 
@@ -136,6 +137,16 @@ export function generateReviewComment(input: ReviewCommentInput): ReviewComment 
           : `${san} hands over roughly ${lossPawns(cpLoss)} pawns. Always check your opponent's replies first. Now ${adv}.`,
         suggestion: bestSan ?? undefined,
       });
+    case 'miss': {
+      const bits = [input.missedChance, input.flaw].filter(Boolean) as string[];
+      return withTags({
+        headline,
+        detail: bits.length > 0
+          ? `${san} ${bits.join(' — ')} (about ${lossPawns(cpLoss)} pawns). The position is still fine — now ${adv}.`
+          : `${san} lets a stronger idea slip (about ${lossPawns(cpLoss)} pawns) — look for the forcing continuation first. Now ${adv}.`,
+        suggestion: bestSan ?? undefined,
+      });
+    }
     case 'blunder': {
       const bits = [input.flaw, input.missedChance].filter(Boolean) as string[];
       return withTags({
@@ -168,7 +179,7 @@ export const COACH_TIPS: string[] = [
 
 export function tipFor(classification: Classification, seed: number): string | undefined {
   if (classification === 'inaccuracy' || classification === 'mistake' ||
-      classification === 'blunder') {
+      classification === 'miss' || classification === 'blunder') {
     return COACH_TIPS[seed % COACH_TIPS.length];
   }
   return undefined;

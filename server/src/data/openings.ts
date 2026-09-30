@@ -172,67 +172,90 @@ export interface FamilySummariesResponse {
  * Intended for the "Classify Openings" view — avoids sending the full
  * openings payload to the client.
  */
-export function getFamilySummaries(opts: {
-  firstMove?: FirstMoveTab;
-  search?: string;
-  page: number;
-  pageSize: number;
-}): FamilySummariesResponse {
+interface FamilyBaseEntry {
+  name: string;
+  lower: string;
+  variations: Opening[];
+}
+
+// Per-tab family lists + tab counts, computed once from the in-memory dataset.
+// Previously this was rebuilt (maps allocated, full dataset re-scanned, merged
+// and re-sorted) on EVERY /families request; now each request only filters and
+// slices the cached lists.
+let familySummaryBase: {
+  entries: Record<FirstMoveTab | 'all', FamilyBaseEntry[]>;
+  tabCounts: Record<FirstMoveTab, number>;
+} | null = null;
+
+function getFamilySummaryBase(): NonNullable<typeof familySummaryBase> {
+  if (familySummaryBase) return familySummaryBase;
   const all = getAllOpenings();
 
-  // Build per-tab family maps once per call (data is already in memory)
-  const tabFamilyMap: Record<FirstMoveTab, Map<string, Opening[]>> = {
-    e4:    new Map(),
-    d4:    new Map(),
-    other: new Map(),
+  const perTab: Record<FirstMoveTab, Map<string, Opening[]>> = {
+    e4: new Map(), d4: new Map(), other: new Map(),
   };
   const tabCounts: Record<FirstMoveTab, number> = { e4: 0, d4: 0, other: 0 };
 
   for (const o of all) {
     const tab = classifyFirstMove(o);
     tabCounts[tab]++;
-    const map = tabFamilyMap[tab];
-    if (!map.has(o.family)) map.set(o.family, []);
-    map.get(o.family)!.push(o);
+    let rows = perTab[tab].get(o.family);
+    if (!rows) { rows = []; perTab[tab].set(o.family, rows); }
+    rows.push(o);
   }
 
-  // Select the map for the requested tab (or all families merged if no tab)
-  let familyMap: Map<string, Opening[]>;
-  if (opts.firstMove) {
-    familyMap = tabFamilyMap[opts.firstMove];
-  } else {
-    // Merge all tabs
-    familyMap = new Map();
-    for (const tab of (['e4', 'd4', 'other'] as FirstMoveTab[])) {
-      for (const [name, rows] of tabFamilyMap[tab]) {
-        if (!familyMap.has(name)) familyMap.set(name, []);
-        familyMap.get(name)!.push(...rows);
-      }
+  const toEntries = (m: Map<string, Opening[]>): FamilyBaseEntry[] =>
+    [...m.entries()]
+      .map(([name, variations]) => ({ name, lower: name.toLowerCase(), variations }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+  const merged = new Map<string, Opening[]>();
+  for (const tab of (['e4', 'd4', 'other'] as FirstMoveTab[])) {
+    for (const [name, rows] of perTab[tab]) {
+      let arr = merged.get(name);
+      if (!arr) { arr = []; merged.set(name, arr); }
+      arr.push(...rows);
     }
   }
 
-  // Apply family-name search filter and sort
-  const lower = (opts.search ?? '').toLowerCase().trim();
-  let familyNames = [...familyMap.keys()].sort();
-  if (lower) {
-    familyNames = familyNames.filter(n => n.toLowerCase().includes(lower));
-  }
+  familySummaryBase = {
+    entries: {
+      e4: toEntries(perTab.e4),
+      d4: toEntries(perTab.d4),
+      other: toEntries(perTab.other),
+      all: toEntries(merged),
+    },
+    tabCounts,
+  };
+  return familySummaryBase;
+}
 
-  const total = familyNames.length;
+export function getFamilySummaries(opts: {
+  firstMove?: FirstMoveTab;
+  search?: string;
+  page: number;
+  pageSize: number;
+}): FamilySummariesResponse {
+  const base = getFamilySummaryBase();
+
+  const list = base.entries[opts.firstMove ?? 'all'];
+
+  // Apply family-name search filter (cached lowercase names — no per-request lowercasing)
+  const lower = (opts.search ?? '').toLowerCase().trim();
+  const filtered = lower ? list.filter(e => e.lower.includes(lower)) : list;
+
+  const total = filtered.length;
   const { page, pageSize } = opts;
   const start = (page - 1) * pageSize;
-  const pageNames = familyNames.slice(start, start + pageSize);
+  const pageEntries = filtered.slice(start, start + pageSize);
 
-  const families: FamilySummary[] = pageNames.map(name => {
-    const variations = familyMap.get(name)!;
-    return {
-      name,
-      count: variations.length,
-      previewMoves: variations[0]?.moves.slice(0, 4) ?? [],
-    };
-  });
+  const families: FamilySummary[] = pageEntries.map(e => ({
+    name: e.name,
+    count: e.variations.length,
+    previewMoves: e.variations[0]?.moves.slice(0, 4) ?? [],
+  }));
 
-  return { families, total, page, pageSize, tabCounts };
+  return { families, total, page, pageSize, tabCounts: base.tabCounts };
 }
 
 // ── Opening identification (for Game Review) ───────────────────────────────────
