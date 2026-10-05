@@ -14,6 +14,8 @@
  * position is within the first 16 plies.
  */
 
+import { loadOpeningsBook } from '../../api/openingsBook';
+
 export interface DetectedOpening {
   eco: string;
   name: string;
@@ -43,9 +45,8 @@ async function loadBook(): Promise<BookEntry[]> {
   if (bookCache) return bookCache;
   if (bookFailed) return [];
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}data/openings.json`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    bookCache = (await res.json()) as BookEntry[];
+    // Shared with the repertoire views — one fetch/parse of openings.json per session.
+    bookCache = (await loadOpeningsBook()).all;
   } catch {
     bookFailed = true;
     return [];

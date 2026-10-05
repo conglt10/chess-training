@@ -5,6 +5,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc && node scripts/copy-assets.mjs && node scripts/build-explorer-index.mjs",
     "build:index": "node scripts/build-explorer-index.mjs",
+    "build:static-data": "tsc && node scripts/copy-assets.mjs && node scripts/build-static-masters.mjs",
     "start": "node dist/index.js",
     "download-tsv": "node scripts/download-tsv.mjs",
     "download-master-games": "node scripts/download-master-games.mjs",
