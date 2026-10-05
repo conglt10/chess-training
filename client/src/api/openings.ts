@@ -1,37 +1,54 @@
 import { Opening, OpeningsResponse, FamilySummariesResponse, FirstMoveTab } from '../types';
-import { cached } from './cache';
+import { loadOpeningsBook } from './openingsBook';
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
+// The opening book is static per deploy and served as a static file
+// (see ./openingsBook.ts), so every query below runs in the browser with the
+// same filter / sort / paging semantics as the old /api/openings endpoints.
 
 export async function fetchOpenings(params: {
   search?: string;
   eco?: string;
   family?: string;
-  /** Comma-separated exact family names — uses server fast-path (no full load) */
+  /** Comma-separated exact family names */
   families?: string;
   sortBy?: 'moves';
   sortDir?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }): Promise<OpeningsResponse> {
-  const q = new URLSearchParams();
-  if (params.search) q.set('search', params.search);
-  if (params.eco) q.set('eco', params.eco);
-  if (params.family) q.set('family', params.family);
-  if (params.families) q.set('families', params.families);
-  if (params.sortBy) q.set('sortBy', params.sortBy);
-  if (params.sortDir) q.set('sortDir', params.sortDir);
-  if (params.page) q.set('page', String(params.page));
-  if (params.pageSize) q.set('pageSize', String(params.pageSize));
+  const book = await loadOpeningsBook();
+  const search = (params.search ?? '').toLowerCase().trim();
+  const eco = (params.eco ?? '').toUpperCase().trim();
+  const family = (params.family ?? '').toLowerCase().trim();
+  const familiesParam = (params.families ?? '').trim();
+  const page = Math.max(1, params.page ?? 1);
+  // Exact-families lookups may fetch a whole curated set in one shot.
+  const maxPageSize = familiesParam ? 5000 : 100;
+  const pageSize = Math.min(maxPageSize, Math.max(1, params.pageSize ?? 50));
 
-  // The opening book is static per deploy — cache by exact query so paging
-  // back, revisiting tabs, or re-typing a search never refetches.
-  const qs = q.toString();
-  return cached(`openings/list:${qs}`, async () => {
-    const res = await fetch(`${BASE}/openings?${qs}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    return res.json() as Promise<OpeningsResponse>;
-  });
+  let filtered: Opening[];
+  if (familiesParam) {
+    filtered = familiesParam
+      .split(',')
+      .map(f => f.trim())
+      .filter(Boolean)
+      .flatMap(f => book.familyIndex.get(f.toLowerCase()) ?? []);
+  } else {
+    filtered = book.all;
+    if (family) filtered = filtered.filter(o => o.family.toLowerCase().includes(family));
+  }
+  if (search) {
+    filtered = filtered.filter(o => o.name.toLowerCase().includes(search) || o.eco.toLowerCase().includes(search));
+  }
+  if (eco) filtered = filtered.filter(o => o.eco.startsWith(eco));
+
+  if (params.sortBy === 'moves') {
+    const dir = params.sortDir === 'asc' ? 1 : -1;
+    filtered = [...filtered].sort((a, b) => dir * (a.moves.length - b.moves.length));
+  }
+
+  const start = (page - 1) * pageSize;
+  return { openings: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize };
 }
 
 /**
@@ -40,45 +57,22 @@ export async function fetchOpenings(params: {
  */
 export async function fetchFamilyCounts(families: string[]): Promise<Record<string, number>> {
   if (families.length === 0) return {};
-  const key = families.join(',');
-  return cached(`openings/family-counts:${key}`, async () => {
-    const q = new URLSearchParams({ families: key });
-    const res = await fetch(`${BASE}/openings/family-counts?${q.toString()}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const data = (await res.json()) as { counts: Array<{ family: string; count: number }> };
-    const map: Record<string, number> = {};
-    for (const c of data.counts) map[c.family.toLowerCase()] = c.count;
-    return map;
-  });
+  const book = await loadOpeningsBook();
+  const map: Record<string, number> = {};
+  for (const f of families) map[f.toLowerCase()] = book.familyIndex.get(f.toLowerCase())?.length ?? 0;
+  return map;
 }
 
-/**
- * Fetch only openings belonging to the given family names.
- * Uses GET /api/openings?families=... (server-side fast-path).
- * Returns all results in one shot — no pagination needed for curated lists.
- */
+/** All openings belonging to the given (exact) family names. */
 export async function fetchOpeningsByFamilies(families: string[]): Promise<Opening[]> {
   if (families.length === 0) return [];
-  const familyList = families.join(',');
-  // Curated family sets are static — cache by the requested families.
-  return cached(`openings/families-list:${familyList}`, async () => {
-    const q = new URLSearchParams({
-      families: familyList,
-      pageSize: '5000',   // more than enough for any curated list
-    });
-    const res = await fetch(`${BASE}/openings?${q.toString()}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-
-    const data: OpeningsResponse = await res.json();
-    return data.openings;
-  });
+  const book = await loadOpeningsBook();
+  return families.flatMap(f => book.familyIndex.get(f.toLowerCase()) ?? []);
 }
 
 export async function fetchFamilies(): Promise<string[]> {
-  const res = await fetch(`${BASE}/openings/families`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  const data = await res.json();
-  return data.families;
+  const book = await loadOpeningsBook();
+  return book.familyEntries.all.map(e => e.name);
 }
 
 export async function fetchFamilySummaries(params: {
@@ -87,23 +81,28 @@ export async function fetchFamilySummaries(params: {
   page?: number;
   pageSize?: number;
 }): Promise<FamilySummariesResponse> {
-  const q = new URLSearchParams();
-  if (params.firstMove) q.set('firstMove', params.firstMove);
-  if (params.search)    q.set('search',    params.search);
-  if (params.page)      q.set('page',      String(params.page));
-  if (params.pageSize)  q.set('pageSize',  String(params.pageSize));
-  const qs = q.toString();
-  // Paginated but static per query — cache by the exact query string.
-  return cached(`openings/families:${qs}`, async () => {
-    const res = await fetch(`${BASE}/openings/families?${qs}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    return res.json() as Promise<FamilySummariesResponse>;
-  });
+  const book = await loadOpeningsBook();
+  const list = book.familyEntries[params.firstMove ?? 'all'];
+  const lower = (params.search ?? '').toLowerCase().trim();
+  const filtered = lower ? list.filter(e => e.lower.includes(lower)) : list;
+
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+  const start = (page - 1) * pageSize;
+  const families = filtered.slice(start, start + pageSize).map(e => ({
+    name: e.name,
+    count: e.variations.length,
+    previewMoves: e.variations[0]?.moves.slice(0, 4) ?? [],
+  }));
+
+  return { families, total: filtered.length, page, pageSize, tabCounts: book.tabCounts };
 }
 
 export async function fetchOpening(eco: string, name: string): Promise<Opening> {
-  const q = new URLSearchParams({ eco, name });
-  const res = await fetch(`${BASE}/openings/single?${q.toString()}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  const book = await loadOpeningsBook();
+  const e = eco.toUpperCase().trim();
+  const n = name.toLowerCase().trim();
+  const opening = book.all.find(o => o.eco === e && o.name.toLowerCase() === n);
+  if (!opening) throw new Error('Opening not found');
+  return opening;
 }
